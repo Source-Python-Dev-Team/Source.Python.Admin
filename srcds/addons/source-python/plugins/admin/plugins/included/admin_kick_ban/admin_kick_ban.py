@@ -106,9 +106,9 @@ def format_ban_duration(seconds):
     if seconds < 0:
         return plugin_strings['duration permanent']
 
-    minutes, seconds = seconds // 60, seconds % 60
-    hours, minutes = minutes // 60, minutes % 60
-    days, hours = hours // 24, hours % 24
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(minutes, 60)
+    days, hours = divmod(hours, 24)
 
     if days:
         return plugin_strings['duration days'].tokenized(
