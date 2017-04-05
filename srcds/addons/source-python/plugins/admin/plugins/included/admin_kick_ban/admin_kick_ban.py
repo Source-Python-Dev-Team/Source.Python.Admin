@@ -561,7 +561,12 @@ class _SpecifyBanPopupFeature(Feature):
         self._selected_ban = (None, "", -1)
 
         self.ban_popup = PagedMenu(title=plugin_strings[self.popup_title])
-        self.reason_popup = PagedMenu(title=plugin_strings[self.popup_title])
+        self.reason_popup = PagedMenu(title=plugin_strings[self.popup_title],
+                                      parent_menu=self.ban_popup)
+
+        # We do not allow returning back to reason popup from duration popup,
+        # because we won't have valid self._selected_ban to build a reason
+        # popup with. Hence we don't provide parent_menu here.
         self.duration_popup = PagedMenu(title=plugin_strings[self.popup_title])
 
         @self.ban_popup.register_build_callback
@@ -699,6 +704,11 @@ stock_ban_durations = load_stock_ban_durations()
 
 menu_section = main_menu.add_entry(AdminMenuSection(
     main_menu, plugin_strings['section_title']))
+
+lift_steamid_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
+lift_ip_address_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
+specify_steamid_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
+specify_ip_address_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
 
 kick_menu_command = menu_section.add_entry(_KickMenuCommand(
     kick_feature,

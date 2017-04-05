@@ -60,6 +60,9 @@ class AdminMenuSection(AdminMenuEntry, list):
 
         self.popup = PagedMenu(title=title)
 
+        if parent is not None:
+            self.popup.parent_menu = parent.popup
+
         @self.popup.register_select_callback
         def select_callback(popup, index, option):
             option.value.select(clients[index])
