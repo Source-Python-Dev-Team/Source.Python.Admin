@@ -8,6 +8,7 @@ from translations.strings import LangStrings
 
 # Source.Python Admin
 from ..clients import clients
+from ..helpers import format_player_name
 from ..strings import strings_common
 
 
@@ -506,7 +507,7 @@ class PlayerBasedAdminCommand(AdminCommand):
         :return: Formatted player's name.
         :rtype: str
         """
-        return player.name
+        return format_player_name(player.name)
 
     def select(self, client):
         if not self.is_visible(client) or not self.is_selectable(client):
