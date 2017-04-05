@@ -151,7 +151,7 @@ class AdminCommand(AdminMenuEntry):
         """Initialize AdminCommand instance.
 
         :param feature: Feature instance this entry is bound to execute.
-        :param parent: Parent AdminMenuEntry instance.
+        :param parent: Parent AdminMenuSection instance.
         :param title: TranslationStrings instance.
         :param str|None id_: String ID that will be used to sort this item.
         """
@@ -194,7 +194,15 @@ class AdminCommand(AdminMenuEntry):
         return client.has_permission(self.feature.flag)
 
     def select(self, client):
+        client.active_popup = None
+
         self.feature.execute(client)
+
+        # Does client still not have an active popup?
+        if client.active_popup is None:
+
+            # Display our parent menu
+            self._parent.select(client)
 
 
 class PlayerBasedSelectionFrame:
@@ -236,7 +244,7 @@ class PlayerBasedAdminCommand(AdminCommand):
 
         :param feature: PlayerBasedFeature instance this entry is bound to
         execute.
-        :param parent: Parent AdminMenuEntry instance.
+        :param parent: Parent AdminMenuSection instance.
         :param title: TranslationStrings instance.
         :param str|None id_: String ID that will be used to sort this item.
         """
@@ -499,8 +507,17 @@ class PlayerBasedAdminCommand(AdminCommand):
         :param client: Client that performs the action.
         :param list player_userids: Unfiltered list of UserIDs.
         """
+
+        client.active_popup = None
+
         for player in self._filter_player_userids(client, player_userids):
             self.feature.execute(client, player)
+
+        # Does client still not have an active popup?
+        if client.active_popup is None:
+
+            # Display our parent menu
+            self._parent.select(client)
 
     @staticmethod
     def render_player_name(player):

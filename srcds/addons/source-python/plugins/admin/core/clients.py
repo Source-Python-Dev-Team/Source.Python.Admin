@@ -29,16 +29,16 @@ class Client:
     def __init__(self, index):
         self.player = Player(index)
 
-        self._active_popup = None
+        self.active_popup = None
 
     def has_permission(self, permission):
         return auth_manager.is_player_authorized(self.player.index, permission)
 
     def send_popup(self, popup):
-        if self._active_popup is not None:
-            self._active_popup.close(self.player.index)
+        if self.active_popup is not None:
+            self.active_popup.close(self.player.index)
 
-        self._active_popup = popup
+        self.active_popup = popup
         popup.send(self.player.index)
 
     def tell(self, message):

@@ -532,7 +532,7 @@ class _LiftBanPopupFeature(Feature):
             ))
 
     def execute(self, client):
-        self.ban_popup.send(client.player.index)
+        client.send_popup(self.ban_popup)
 
 
 class _LiftSteamIDBanPopupFeature(_LiftBanPopupFeature):
@@ -588,7 +588,7 @@ class _SpecifyBanPopupFeature(Feature):
         @self.ban_popup.register_select_callback
         def select_callback(popup, index, option):
             self._selected_ban = option.value
-            self.reason_popup.send(index)
+            clients[index].send_popup(self.reason_popup)
 
         @self.reason_popup.register_build_callback
         def build_callback(popup, index):
@@ -608,7 +608,7 @@ class _SpecifyBanPopupFeature(Feature):
         @self.reason_popup.register_select_callback
         def select_callback(popup, index, option):
             self._selected_ban = option.value
-            self.duration_popup.send(index)
+            clients[index].send_popup(self.duration_popup)
 
         @self.duration_popup.register_build_callback
         def build_callback(popup, index):
@@ -647,7 +647,7 @@ class _SpecifyBanPopupFeature(Feature):
             ))
 
     def execute(self, client):
-        self.ban_popup.send(client.player.index)
+        client.send_popup(self.ban_popup)
 
 
 class _SpecifySteamIDBanPopupFeature(_SpecifyBanPopupFeature):
