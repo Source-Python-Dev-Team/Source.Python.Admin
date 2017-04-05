@@ -523,8 +523,8 @@ specify_steamid_ban_feature = _SpecifySteamIDBanFeature()
 
 class _SpecifyIPAddressBanFeature(_SpecifyBanFeature):
     flag = "admin.admin_kick_ban.ban_ip_address"
-    popup_title = 'popup_title specify_steamid'
-    banned_uniqueid_manager = banned_steamid_manager
+    popup_title = 'popup_title specify_ip_address'
+    banned_uniqueid_manager = banned_ip_address_manager
 
 # The singleton object of the _SpecifySteamIDBanFeature class.
 specify_ip_address_ban_feature = _SpecifyIPAddressBanFeature()
