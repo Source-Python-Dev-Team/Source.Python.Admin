@@ -2,6 +2,8 @@
 # >> IMPORTS
 # =============================================================================
 # Python
+from collections import OrderedDict
+import json
 from time import time
 
 # Source.Python
@@ -12,18 +14,21 @@ from listeners import OnClientConnect, OnNetworkidValidated
 from listeners.tick import GameThread
 from memory import make_object
 from memory.hooks import PostHook
+from menus import PagedMenu, PagedOption
 from players import Client
 from players.helpers import get_client_language
 from translations.manager import language_manager
 
 # Source.Python Admin
 from admin.admin import main_menu
+from admin.core.clients import clients
 from admin.core.config import config
-from admin.core.features import PlayerBasedFeature
-from admin.core.frontends.menus import (AdminMenuSection,
-                                        PlayerBasedAdminCommand)
+from admin.core.features import Feature, PlayerBasedFeature
+from admin.core.frontends.menus import (
+    AdminCommand, AdminMenuSection, PlayerBasedAdminCommand)
 from admin.core.memory import custom_server
 from admin.core.orm import Session
+from admin.core.paths import ADMIN_DATA_PATH
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
@@ -49,10 +54,145 @@ def extract_ip_address(address):
     return address[:port_pos]
 
 
+def load_stock_ban_reasons():
+    with open(ADMIN_DATA_PATH / "included_plugins" /
+              "admin_kick_ban" / "ban_reasons.json") as f:
+
+        ban_reasons_json = json.load(f)
+
+    try:
+        with open(ADMIN_DATA_PATH / "included_plugins" /
+                  "admin_kick_ban" / "ban_reasons_server.json") as f:
+
+            ban_reasons_server_json = json.load(f)
+
+    except FileNotFoundError:
+        ban_reasons_server_json = []
+
+    ban_reasons = OrderedDict()
+    for ban_reason_json in ban_reasons_json:
+        stock_ban_reason = _StockBanReason(ban_reason_json)
+        ban_reasons[stock_ban_reason.id] = stock_ban_reason
+
+    for ban_reason_json in ban_reasons_server_json:
+        stock_ban_reason = _StockBanReason(ban_reason_json)
+        ban_reasons[stock_ban_reason.id] = stock_ban_reason
+
+    return ban_reasons
+
+
+def load_stock_ban_durations():
+    with open(ADMIN_DATA_PATH / "included_plugins" /
+              "admin_kick_ban" / "ban_durations.json") as f:
+
+        ban_durations_json = json.load(f)
+
+    try:
+        with open(ADMIN_DATA_PATH / "included_plugins" /
+                  "admin_kick_ban" / "ban_durations_server.json") as f:
+
+            ban_durations_server_json = json.load(f)
+
+    except FileNotFoundError:
+        ban_durations_server_json = []
+
+    ban_durations = ban_durations_json + ban_durations_server_json
+    ban_durations.sort()
+
+    return ban_durations
+
+
+def format_ban_duration(seconds):
+    if seconds < 0:
+        return plugin_strings['duration permanent']
+
+    minutes, seconds = seconds // 60, seconds % 60
+    hours, minutes = minutes // 60, minutes % 60
+    days, hours = hours // 24, hours % 24
+
+    if days:
+        return plugin_strings['duration days'].tokenized(
+            days=days, hours=hours, mins=minutes, secs=seconds)
+
+    if hours:
+        return plugin_strings['duration hours'].tokenized(
+            hours=hours, mins=minutes, secs=seconds)
+
+    if minutes:
+        return plugin_strings['duration minutes'].tokenized(
+            mins=minutes, secs=seconds)
+
+    return plugin_strings['duration seconds'].tokenized(secs=seconds)
+
+
+# =============================================================================
+# >> GLOBAL VARIABLES
+# =============================================================================
+plugin_strings = PluginStrings("admin_kick_ban")
+
+
 # =============================================================================
 # >> CLASSES
 # =============================================================================
-class _BannedSteamIDManager(dict):
+class _StockBanReason:
+    def __init__(self, data):
+        self.id = data['id']
+        self.translation = plugin_strings[data['translation']]
+        self.duration = data['suggestedBanDuration']
+
+
+class _BannedPlayerInfo:
+    def __init__(self, id_, name, admin_steamid, reviewed, expires_timestamp):
+        self.id = id_
+        self.name = name
+        self.admin_steamid = admin_steamid
+        self.reviewed = reviewed
+        self.expires_timestamp = expires_timestamp
+
+
+class _BannedUniqueIDManager(dict):
+    def refresh(self):
+        raise NotImplementedError
+
+    def is_banned(self, uniqueid):
+        if uniqueid not in self:
+            return False
+
+        if self[uniqueid].expires_timestamp < 0:
+            return True
+
+        if self[uniqueid].expires_timestamp < time():
+            del self[uniqueid]
+            return False
+
+        return True
+
+    def save_ban_to_database(self, client, uniqueid, name, duration):
+        raise NotImplementedError
+
+    def get_unreviewed_bans_for_admin(self, admin_steamid):
+        current_time = time()
+
+        result = []
+        for uniqueid, banned_player_info in self.items():
+            if banned_player_info.admin_steamid != admin_steamid:
+                continue
+
+            if banned_player_info.reviewed:
+                continue
+
+            if banned_player_info.expires_timestamp < current_time:
+                continue
+
+            result.append((uniqueid, banned_player_info))
+
+        return result
+
+    def review_ban(self, ban_id, reason, duration):
+        raise NotImplementedError
+
+
+class _BannedSteamIDManager(_BannedUniqueIDManager):
     def refresh(self):
         self.clear()
 
@@ -68,32 +208,20 @@ class _BannedSteamIDManager(dict):
             if -1 < banned_user.expires_timestamp < current_time:
                 continue
 
-            self[banned_user.steamid] = banned_user.expires_timestamp
+            self[banned_user.steamid] = _BannedPlayerInfo(
+                banned_user.id, banned_user.name, banned_user.admin_steamid,
+                banned_user.reviewed, banned_user.expires_timestamp)
 
         session.close()
 
-    def is_steamid_banned(self, steamid):
-        if steamid not in self:
-            return False
-
-        if self[steamid] < 0:
-            return True
-
-        if self[steamid] < time():
-            del self[steamid]
-            return False
-
-        return True
-
-    @staticmethod
-    def save_steamid_to_database(client, steamid, name, duration):
+    def save_ban_to_database(self, client, uniqueid, name, duration):
         session = Session()
 
         banned_steamid = BannedSteamID()
         session.add(banned_steamid)
 
         current_time = time()
-        banned_steamid.steamid = steamid
+        banned_steamid.steamid = uniqueid
         banned_steamid.name = name
         banned_steamid.admin_steamid = client.player.steamid
         banned_steamid.reviewed = False
@@ -104,13 +232,46 @@ class _BannedSteamIDManager(dict):
         banned_steamid.notes = ""
 
         session.commit()
+
+        self[uniqueid] = _BannedPlayerInfo(
+            banned_steamid.id, name, client.player.steamid, False,
+            current_time + duration)
+
         session.close()
+
+    def review_ban(self, ban_id, reason, duration):
+        session = Session()
+
+        banned_steamid = session.query(
+            BannedSteamID).filter_by(id=ban_id).first()
+
+        if banned_steamid is None:
+            session.close()
+            return
+
+        current_time = time()
+
+        banned_steamid.reviewed = True
+        banned_steamid.expires_timestamp = current_time + duration
+        banned_steamid.reason = reason
+
+        session.commit()
+        session.close()
+
+        for banned_player_info in self.values():
+            if banned_player_info.id != ban_id:
+                continue
+
+            banned_player_info.reviewed = True
+            banned_player_info.expires_timestamp = current_time + duration
+            break
+
 
 # The singleton object for the _BannedSteamIDManager class.
 banned_steamid_manager = _BannedSteamIDManager()
 
 
-class _BannedIPAddressManager(dict):
+class _BannedIPAddressManager(_BannedUniqueIDManager):
     def refresh(self):
         self.clear()
 
@@ -126,32 +287,20 @@ class _BannedIPAddressManager(dict):
             if -1 < banned_user.expires_timestamp < current_time:
                 continue
 
-            self[banned_user.ip_address] = banned_user.expires_timestamp
+            self[banned_user.ip_address] = _BannedPlayerInfo(
+                banned_user.id, banned_user.name, banned_user.admin_steamid,
+                banned_user.reviewed, banned_user.expires_timestamp)
 
         session.close()
 
-    def is_ip_address_banned(self, ip_address):
-        if ip_address not in self:
-            return False
-
-        if self[ip_address] < 0:
-            return True
-
-        if self[ip_address] < time():
-            del self[ip_address]
-            return False
-
-        return True
-
-    @staticmethod
-    def save_ip_address_to_database(client, ip_address, name, duration):
+    def save_ban_to_database(self, client, uniqueid, name, duration):
         session = Session()
 
         banned_ip_address = BannedIPAddress()
         session.add(banned_ip_address)
 
         current_time = time()
-        banned_ip_address.ip_address = ip_address
+        banned_ip_address.ip_address = uniqueid
         banned_ip_address.name = name
         banned_ip_address.admin_steamid = client.player.steamid
         banned_ip_address.reviewed = False
@@ -162,7 +311,39 @@ class _BannedIPAddressManager(dict):
         banned_ip_address.notes = ""
 
         session.commit()
+
+        self[uniqueid] = _BannedPlayerInfo(
+            banned_ip_address.id, name, client.player.steamid, False,
+            current_time + duration)
+
         session.close()
+
+    def review_ban(self, ban_id, reason, duration):
+        session = Session()
+
+        banned_ip_address = session.query(
+            BannedIPAddress).filter_by(id=ban_id).first()
+
+        if banned_ip_address is None:
+            session.close()
+            return
+
+        current_time = time()
+
+        banned_ip_address.reviewed = True
+        banned_ip_address.expires_timestamp = current_time + duration
+        banned_ip_address.reason = reason
+
+        session.commit()
+        session.close()
+
+        for banned_player_info in self.values():
+            if banned_player_info.id != ban_id:
+                continue
+
+            banned_player_info.reviewed = True
+            banned_player_info.expires_timestamp = current_time + duration
+            break
 
 # The singleton object for the _BannedIPAddressManager class.
 banned_ip_address_manager = _BannedIPAddressManager()
@@ -172,8 +353,7 @@ class _KickFeature(PlayerBasedFeature):
     flag = "admin.admin_kick_ban.kick"
     allow_execution_on_self = False
 
-    @staticmethod
-    def execute(client, player):
+    def execute(self, client, player):
         language = get_client_language(player.index)
         player.kick(plugin_strings['default_kick_reason'].get_string(language))
 
@@ -185,9 +365,13 @@ class _BanSteamIDFeature(PlayerBasedFeature):
     flag = "admin.admin_kick_ban.ban_steamid"
     allow_execution_on_self = False
 
-    @staticmethod
-    def execute(client, player):
+    def execute(self, client, player):
         if player.is_fake_client():
+            client.tell(plugin_strings['error bot_cannot_ban'])
+            return
+
+        if banned_steamid_manager.is_banned(player.steamid):
+            client.tell(plugin_strings['error already_ban_in_effect'])
             return
 
         language = get_client_language(player.index)
@@ -201,10 +385,9 @@ class _BanSteamIDFeature(PlayerBasedFeature):
         player.kick(plugin_strings['default_ban_reason'].get_string(language))
 
         duration = int(config['settings']['default_ban_time_seconds'])
-        banned_steamid_manager[player_steamid] = time() + duration
 
         GameThread(
-            target=banned_steamid_manager.save_steamid_to_database,
+            target=banned_steamid_manager.save_ban_to_database,
             args=(client, player_steamid, player_name, duration)
         ).start()
 
@@ -216,12 +399,16 @@ class _BanIPAddressFeature(PlayerBasedFeature):
     flag = "admin.admin_kick_ban.ban_ip_address"
     allow_execution_on_self = False
 
-    @staticmethod
-    def execute(client, player):
+    def execute(self, client, player):
         if player.is_fake_client():
+            client.tell(plugin_strings['error bot_cannot_ban'])
             return
 
         ip_address = extract_ip_address(player.address)
+        if banned_ip_address_manager.is_banned(ip_address):
+            client.tell(plugin_strings['error already_ban_in_effect'])
+            return
+
         language = get_client_language(player.index)
 
         # Save player name so that we don't crash when accessing properties
@@ -232,10 +419,9 @@ class _BanIPAddressFeature(PlayerBasedFeature):
         player.kick(plugin_strings['default_ban_reason'].get_string(language))
 
         duration = int(config['settings']['default_ban_time_seconds'])
-        banned_ip_address_manager[ip_address] = time() + duration
 
         GameThread(
-            target=banned_ip_address_manager.save_ip_address_to_database,
+            target=banned_ip_address_manager.save_ban_to_database,
             args=(client, ip_address, player_name, duration)
         ).start()
 
@@ -243,36 +429,149 @@ class _BanIPAddressFeature(PlayerBasedFeature):
 ban_ip_address_feature = _BanIPAddressFeature()
 
 
-class KickMenuCommand(PlayerBasedAdminCommand):
+class _SpecifyBanFeature(Feature):
+    popup_title = None
+    banned_uniqueid_manager = None
+
+    def __init__(self):
+        self._selected_ban = (-1, "", -1)  # ID, Reason, Duration
+
+        self.ban_popup = PagedMenu(title=plugin_strings[self.popup_title])
+        self.reason_popup = PagedMenu(title=plugin_strings[self.popup_title])
+        self.duration_popup = PagedMenu(title=plugin_strings[self.popup_title])
+
+        @self.ban_popup.register_build_callback
+        def build_callback(popup, index):
+            client = clients[index]
+            popup.clear()
+
+            bans = self.banned_uniqueid_manager.get_unreviewed_bans_for_admin(
+                client.player.steamid)
+
+            for uniqueid, banned_player_info in bans:
+                popup.append(PagedOption(
+                    text=plugin_strings['unreviewed_ban'].tokenized(
+                        id=uniqueid, name=banned_player_info.name),
+                    value=(banned_player_info.id, "", -1)
+                ))
+
+        @self.ban_popup.register_select_callback
+        def select_callback(popup, index, option):
+            self._selected_ban = option.value
+            self.reason_popup.send(index)
+
+        @self.reason_popup.register_build_callback
+        def build_callback(popup, index):
+            popup.clear()
+
+            for stock_ban_reason in stock_ban_reasons.values():
+                popup.append(PagedOption(
+                    text=stock_ban_reason.translation,
+                    value=(
+                        self._selected_ban[0],
+                        stock_ban_reason.translation.get_string(
+                            language_manager.default),
+                        stock_ban_reason.duration,
+                    )
+                ))
+
+        @self.reason_popup.register_select_callback
+        def select_callback(popup, index, option):
+            self._selected_ban = option.value
+            self.duration_popup.send(index)
+
+        @self.duration_popup.register_build_callback
+        def build_callback(popup, index):
+            popup.clear()
+
+            if self._selected_ban[2] is not None:
+                popup.append(PagedOption(
+                    text=plugin_strings['default_duration'].tokenized(
+                        default=format_ban_duration(self._selected_ban[2])),
+                    value=self._selected_ban
+                ))
+
+            for stock_ban_duration in stock_ban_durations:
+                popup.append(PagedOption(
+                    text=format_ban_duration(stock_ban_duration),
+                    value=(
+                        self._selected_ban[0],
+                        self._selected_ban[1],
+                        stock_ban_duration,
+                    )
+                ))
+
+        @self.duration_popup.register_select_callback
+        def select_callback(popup, index, option):
+            GameThread(
+                target=self.banned_uniqueid_manager.review_ban,
+                args=(option.value[0], option.value[1], option.value[2])
+            ).start()
+
+    def execute(self, client):
+        self.ban_popup.send(client.player.index)
+
+
+class _SpecifySteamIDBanFeature(_SpecifyBanFeature):
+    flag = "admin.admin_kick_ban.ban_steamid"
+    popup_title = 'popup_title specify_steamid'
+    banned_uniqueid_manager = banned_steamid_manager
+
+# The singleton object of the _SpecifySteamIDBanFeature class.
+specify_steamid_ban_feature = _SpecifySteamIDBanFeature()
+
+
+class _SpecifyIPAddressBanFeature(_SpecifyBanFeature):
+    flag = "admin.admin_kick_ban.ban_ip_address"
+    popup_title = 'popup_title specify_steamid'
+    banned_uniqueid_manager = banned_steamid_manager
+
+# The singleton object of the _SpecifySteamIDBanFeature class.
+specify_ip_address_ban_feature = _SpecifyIPAddressBanFeature()
+
+
+class _KickMenuCommand(PlayerBasedAdminCommand):
     allow_multiple_choices = False
 
 
-class BanMenuCommand(PlayerBasedAdminCommand):
+class _BanMenuCommand(PlayerBasedAdminCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 
 
 # =============================================================================
-# >> GLOBAL VARIABLES
+# >> MENU ENTRIES
 # =============================================================================
-plugin_strings = PluginStrings("admin_kick_ban")
+stock_ban_reasons = load_stock_ban_reasons()
+stock_ban_durations = load_stock_ban_durations()
+
 menu_section = main_menu.add_entry(AdminMenuSection(
     main_menu, plugin_strings['section_title']))
 
-kick_menu_command = menu_section.add_entry(KickMenuCommand(
+kick_menu_command = menu_section.add_entry(_KickMenuCommand(
     kick_feature,
     menu_section,
-    plugin_strings['popup title kick']
+    plugin_strings['popup_title kick']
 ))
-ban_steamid_menu_command = menu_section.add_entry(BanMenuCommand(
+ban_steamid_menu_command = menu_section.add_entry(_BanMenuCommand(
     ban_steamid_feature,
     menu_section,
-    plugin_strings['popup title ban_steamid']
+    plugin_strings['popup_title ban_steamid']
 ))
-ban_ip_address_menu_command = menu_section.add_entry(BanMenuCommand(
+ban_ip_address_menu_command = menu_section.add_entry(_BanMenuCommand(
     ban_ip_address_feature,
     menu_section,
-    plugin_strings['popup title ban_ip_address']
+    plugin_strings['popup_title ban_ip_address']
+))
+specify_steamid_ban_menu_command = menu_section.add_entry(AdminCommand(
+    specify_steamid_ban_feature,
+    menu_section,
+    plugin_strings['popup_title specify_steamid']
+))
+specify_ip_address_ban_menu_command = menu_section.add_entry(AdminCommand(
+    specify_ip_address_ban_feature,
+    menu_section,
+    plugin_strings['popup_title specify_ip_address']
 ))
 
 
@@ -281,7 +580,7 @@ ban_ip_address_menu_command = menu_section.add_entry(BanMenuCommand(
 # =============================================================================
 @OnNetworkidValidated
 def listener_on_networkid_validated(name, steamid):
-    if not banned_steamid_manager.is_steamid_banned(steamid):
+    if not banned_steamid_manager.is_banned(steamid):
         return
 
     client = find_client(steamid)
@@ -297,7 +596,7 @@ def listener_on_client_connect(
         allow_connect, index, name, address, reject_message, max_reject_len):
 
     ip_address = extract_ip_address(address)
-    if not banned_ip_address_manager.is_ip_address_banned(ip_address):
+    if not banned_ip_address_manager.is_banned(ip_address):
         return
 
     allow_connect.set_bool(False)
@@ -327,7 +626,7 @@ def on_admin_plugin_loaded(ev):
 @PostHook(custom_server.check_challenge_type)
 def post_check_challenge_type(args, return_value=0):
     client = make_object(Client, args[1] + 4)
-    if not banned_steamid_manager.is_steamid_banned(client.steamid):
+    if not banned_steamid_manager.is_banned(client.steamid):
         return
 
     if GAME_NAME == 'csgo':

@@ -1,0 +1,37 @@
+[
+  {
+    "id": "offensive",
+    "translation": "reason offensive",
+    "suggestedBanDuration": 86400
+  },
+  {
+    "id": "mic_spam",
+    "translation": "reason mic_spam",
+    "suggestedBanDuration": 7200
+  },
+  {
+    "id": "text_spam",
+    "translation": "reason text_spam",
+    "suggestedBanDuration": 7200
+  },
+  {
+    "id": "improper_language",
+    "translation": "reason improper_language",
+    "suggestedBanDuration": 7200
+  },
+  {
+    "id": "obscene_pictures",
+    "translation": "reason obscene_pictures",
+    "suggestedBanDuration": 259200
+  },
+  {
+    "id": "cheats",
+    "translation": "reason cheats",
+    "suggestedBanDuration": -1
+  },
+  {
+    "id": "server_rules_offense",
+    "translation": "reason server_rules_offense",
+    "suggestedBanDuration": null
+  }
+]

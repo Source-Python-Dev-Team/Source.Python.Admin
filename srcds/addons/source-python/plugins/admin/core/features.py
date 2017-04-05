@@ -13,8 +13,7 @@ class BaseFeature:
 
 
 class Feature(BaseFeature):
-    @staticmethod
-    def execute(client):
+    def execute(self, client):
         """Execute the feature.
 
         :param client: Client that performs the action.
@@ -30,8 +29,7 @@ class PlayerBasedFeature(BaseFeature):
     # permissions to execute this command, too?
     allow_execution_on_equal_priority = False
 
-    @staticmethod
-    def execute(client, player):
+    def execute(self, client, player):
         """Execute the feature on the given player.
 
         :param client: Client that performs the action.
