@@ -667,9 +667,28 @@ class _KickMenuCommand(PlayerBasedAdminCommand):
     allow_multiple_choices = False
 
 
-class _BanMenuCommand(PlayerBasedAdminCommand):
+class _BanSteamIDMenuCommand(PlayerBasedAdminCommand):
     base_filter = 'human'
     allow_multiple_choices = False
+
+    @staticmethod
+    def render_player_name(player):
+        return plugin_strings['player_name'].tokenized(
+            name=format_player_name(player.name),
+            id=player.steamid
+        )
+
+
+class _BanIPAddressMenuCommand(PlayerBasedAdminCommand):
+    base_filter = 'human'
+    allow_multiple_choices = False
+
+    @staticmethod
+    def render_player_name(player):
+        return plugin_strings['player_name'].tokenized(
+            name=format_player_name(player.name),
+            id=extract_ip_address(player.address)
+        )
 
 
 # =============================================================================
@@ -686,12 +705,12 @@ kick_menu_command = menu_section.add_entry(_KickMenuCommand(
     menu_section,
     plugin_strings['popup_title kick']
 ))
-ban_steamid_menu_command = menu_section.add_entry(_BanMenuCommand(
+ban_steamid_menu_command = menu_section.add_entry(_BanSteamIDMenuCommand(
     ban_steamid_feature,
     menu_section,
     plugin_strings['popup_title ban_steamid']
 ))
-ban_ip_address_menu_command = menu_section.add_entry(_BanMenuCommand(
+ban_ip_address_menu_command = menu_section.add_entry(_BanIPAddressMenuCommand(
     ban_ip_address_feature,
     menu_section,
     plugin_strings['popup_title ban_ip_address']
