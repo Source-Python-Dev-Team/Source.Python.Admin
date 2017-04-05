@@ -425,18 +425,20 @@ class PlayerBasedAdminCommand(AdminCommand):
                 draft.title = strings_menus[
                     'title select_player'].tokenized(base=title)
 
-                # Create a "Select multiple" selection frame
-                new_frame = PlayerBasedSelectionFrame()
-                new_frame.player_userids = []
-                new_frame.selecting_multiple = False
-                new_frame.special_toggle_multiple = True
+                if self.allow_multiple_choices:
 
-                string = strings_menus['select_player turn_selection_on']
+                    # Create a "Select multiple" selection frame
+                    new_frame = PlayerBasedSelectionFrame()
+                    new_frame.player_userids = []
+                    new_frame.selecting_multiple = False
+                    new_frame.special_toggle_multiple = True
 
-                draft.options.append(PagedOption(
-                    text=string,
-                    value=new_frame
-                ))
+                    string = strings_menus['select_player turn_selection_on']
+
+                    draft.options.append(PagedOption(
+                        text=string,
+                        value=new_frame
+                    ))
 
                 # Add proper players to the draft
                 for player in PlayerIter(self.base_filter):
