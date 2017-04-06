@@ -415,7 +415,7 @@ class _BanSteamIDFeature(PlayerBasedFeature):
     allow_execution_on_self = False
 
     def execute(self, client, player):
-        if player.is_fake_client():
+        if player.is_fake_client() or player.is_hltv():
             client.tell(plugin_strings['error bot_cannot_ban'])
             return
 
@@ -454,7 +454,7 @@ class _BanIPAddressFeature(PlayerBasedFeature):
     allow_execution_on_self = False
 
     def execute(self, client, player):
-        if player.is_fake_client():
+        if player.is_fake_client() or player.is_hltv():
             client.tell(plugin_strings['error bot_cannot_ban'])
             return
 
