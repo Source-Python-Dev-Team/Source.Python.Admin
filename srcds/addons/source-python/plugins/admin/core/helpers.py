@@ -25,6 +25,12 @@ admin_performed_actions_logger = admin_core_logger.performed_actions
 # =============================================================================
 # >> FUNCTIONS
 # =============================================================================
+def extract_ip_address(address):
+
+    # We don't just do address.split(':')[0] - because that'd drop IPv6 support
+    return address[:address.rfind(':')]
+
+
 def format_player_name(player_name):
     if len(player_name.encode('utf-8')) <= MAX_NAME_LENGTH_BYTES:
         return player_name

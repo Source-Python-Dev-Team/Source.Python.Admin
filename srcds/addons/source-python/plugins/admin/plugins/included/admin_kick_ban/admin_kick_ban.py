@@ -26,7 +26,8 @@ from admin.core.config import config
 from admin.core.features import Feature, PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminCommand, AdminMenuSection, PlayerBasedAdminCommand)
-from admin.core.helpers import format_player_name, log_admin_action
+from admin.core.helpers import (
+    extract_ip_address, format_player_name, log_admin_action)
 from admin.core.memory import custom_server
 from admin.core.orm import Session
 from admin.core.paths import ADMIN_DATA_PATH
@@ -46,13 +47,6 @@ def find_client(steamid):
             return client
 
     return None
-
-
-def extract_ip_address(address):
-
-    # We don't just do address.split(':')[0] - because that'd drop IPv6 support
-    port_pos = address.rfind(':')
-    return address[:port_pos]
 
 
 def load_stock_ban_reasons():
