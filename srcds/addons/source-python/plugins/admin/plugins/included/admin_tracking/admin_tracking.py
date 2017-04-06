@@ -30,6 +30,25 @@ from .models import TrackedPlayerRecord as DB_Record
 
 
 # =============================================================================
+# >> FUNCTIONS
+# =============================================================================
+def remove_old_database_records():
+    session = Session()
+    max_record_life_seconds = (
+        int(plugin_config['database']['max_record_life_days']) * 24 * 3600)
+
+    (
+        session
+        .query(DB_Record)
+        .filter(DB_Record.seen_at < time() - max_record_life_seconds)
+        .delete(synchronize_session=False)
+    )
+
+    session.commit()
+    session.close()
+
+
+# =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
 plugin_strings = PluginStrings("admin_tracking")
@@ -339,6 +358,12 @@ track_menu_command = menu_section.add_entry(_TrackMenuCommand(
     menu_section,
     plugin_strings['popup_title track']
 ))
+
+
+# =============================================================================
+# >> SYNCHRONOUS DATABASE OPERATIONS
+# =============================================================================
+remove_old_database_records()
 
 
 # =============================================================================
