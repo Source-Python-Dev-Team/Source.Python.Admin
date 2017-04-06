@@ -9,7 +9,6 @@ from time import time
 # Source.Python
 from core import GAME_NAME
 from engines.server import server
-from events import Event
 from listeners import OnClientConnect, OnNetworkidValidated
 from listeners.tick import GameThread
 from memory import make_object
@@ -742,6 +741,13 @@ lift_ip_address_ban_menu_command = menu_section.add_entry(AdminCommand(
 
 
 # =============================================================================
+# >> SYNCHRONOUS DATABASE OPERATIONS
+# =============================================================================
+banned_steamid_manager.refresh()
+banned_ip_address_manager.refresh()
+
+
+# =============================================================================
 # >> LISTENERS
 # =============================================================================
 @OnNetworkidValidated
@@ -772,18 +778,6 @@ def listener_on_client_connect(
     reason = reason.encode('utf-8')[:max_reject_len].decode('utf-8', 'ignore')
 
     reject_message.set_string_array(reason)
-
-
-# =============================================================================
-# >> EVENTS
-# =============================================================================
-@Event('admin_plugin_loaded')
-def on_admin_plugin_loaded(ev):
-    if ev['plugin'] != "admin_kick_ban":
-        return
-
-    banned_steamid_manager.refresh()
-    banned_ip_address_manager.refresh()
 
 
 # =============================================================================
