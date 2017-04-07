@@ -2,13 +2,12 @@
 # >> IMPORTS
 # =============================================================================
 # Python
-from configparser import ConfigParser
 from enum import IntEnum
 from time import localtime, strftime, time
 
 # Source.Python
 from events import Event
-from listeners import OnClientActive, OnClientDisconnect
+from listeners import OnClientActive
 from listeners.tick import GameThread
 from menus import PagedMenu, PagedOption, SimpleMenu, Text
 from players.dictionary import PlayerDictionary
@@ -22,7 +21,7 @@ from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminMenuSection, PlayerBasedAdminCommand)
 from admin.core.orm import Session
-from admin.core.paths import ADMIN_DATA_PATH
+from admin.core.plugins.config import load_plugin_config
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
@@ -51,10 +50,8 @@ def remove_old_database_records():
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
+plugin_config = load_plugin_config("admin_tracking", "config")
 plugin_strings = PluginStrings("admin_tracking")
-plugin_config = ConfigParser()
-plugin_config.read(
-    ADMIN_DATA_PATH / "included_plugins" / "admin_tracking" / "config.ini")
 
 
 # =============================================================================
@@ -125,6 +122,12 @@ class _TrackedPlayer(list):
         session.close()
 
         self.clear()
+
+
+class _TrackedPlayerDictionary(PlayerDictionary):
+    def on_automatically_removed(self, index):
+        tracked_player = self[index]
+        GameThread(target=tracked_player.save_to_database).start()
 
 
 class _TrackPopupRecord:
@@ -344,7 +347,7 @@ class _TrackMenuCommand(PlayerBasedAdminCommand):
 # =============================================================================
 # >> PLAYER DICTIONARY
 # =============================================================================
-tracked_players = PlayerDictionary(_TrackedPlayer)
+tracked_players = _TrackedPlayerDictionary(_TrackedPlayer)
 
 
 # =============================================================================
@@ -373,12 +376,6 @@ remove_old_database_records()
 def listener_on_client_active(index):
     tracked_player = tracked_players[index]
     tracked_player.track()
-
-
-@OnClientDisconnect
-def listener_on_client_disconnect(index):
-    tracked_player = tracked_players[index]
-    GameThread(target=tracked_player.save_to_database).start()
 
 
 # =============================================================================

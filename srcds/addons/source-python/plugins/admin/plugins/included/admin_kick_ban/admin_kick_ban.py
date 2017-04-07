@@ -21,7 +21,6 @@ from translations.manager import language_manager
 # Source.Python Admin
 from admin.admin import main_menu
 from admin.core.clients import clients
-from admin.core.config import config
 from admin.core.features import Feature, PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminCommand, AdminMenuSection, PlayerBasedAdminCommand)
@@ -30,6 +29,7 @@ from admin.core.helpers import (
 from admin.core.memory import custom_server
 from admin.core.orm import Session
 from admin.core.paths import ADMIN_DATA_PATH
+from admin.core.plugins.config import load_plugin_config
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
@@ -122,6 +122,7 @@ def format_ban_duration(seconds):
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
+plugin_config = load_plugin_config("admin_kick_ban", "config")
 plugin_strings = PluginStrings("admin_kick_ban")
 
 
@@ -432,7 +433,7 @@ class _BanSteamIDFeature(PlayerBasedFeature):
         # Disconnect the player
         player.kick(plugin_strings['default_ban_reason'].get_string(language))
 
-        duration = int(config['settings']['default_ban_time_seconds'])
+        duration = int(plugin_config['settings']['default_ban_time_seconds'])
 
         GameThread(
             target=banned_steamid_manager.save_ban_to_database,
@@ -471,7 +472,7 @@ class _BanIPAddressFeature(PlayerBasedFeature):
         # Disconnect the player
         player.kick(plugin_strings['default_ban_reason'].get_string(language))
 
-        duration = int(config['settings']['default_ban_time_seconds'])
+        duration = int(plugin_config['settings']['default_ban_time_seconds'])
 
         GameThread(
             target=banned_ip_address_manager.save_ban_to_database,
