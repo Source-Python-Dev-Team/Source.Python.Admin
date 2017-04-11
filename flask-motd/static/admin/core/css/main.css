@@ -97,8 +97,8 @@ body {
 
 .nav-section-link {
     padding: 0 5px;
-    line-height: 20px;
-    height: 20px;
+    line-height: 25px;
+    height: 25px;
     font-size: 9pt;
     cursor: pointer;
     background-color: rgba(255, 255, 255, .1);
