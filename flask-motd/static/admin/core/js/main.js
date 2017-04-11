@@ -1,7 +1,7 @@
 var APP = function (version, author, serverTime, b64NavInit) {
     var app = this;
 
-    var NAV_LINK_HEIGHT = 20, NAV_BAR_HEIGHT = 30;
+    var NAV_LINK_HEIGHT = 25, NAV_BAR_HEIGHT = 30;
     var MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     var navData = JSON.parse(atob(b64NavInit));
     navData.originalPath = navData.currentPath === null ? null : navData.currentPath.slice();
