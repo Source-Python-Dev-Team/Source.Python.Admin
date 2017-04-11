@@ -1,0 +1,119 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto:400,400i,700,700i');
+
+* {
+    margin: 0;
+    padding: 0;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    font-family: 'Roboto', sans-serif;
+}
+
+body {
+    background-color: #333333;
+    color: #ffffff;
+}
+
+.clear {
+    clear: both;
+}
+
+.logo {
+    width: 100%;
+    height: 80px;
+    background: #252525 url("/static/admin/core/img/logo.png") center center no-repeat;
+    box-shadow: 0 0 5px #000;
+}
+
+.system-status {
+    position: fixed;
+    left: 0;
+	bottom: 0;
+	width: 100%;
+	height: 15px;
+	padding: 10px 20px;
+	font-size: 9pt;
+	z-index: 10;
+	cursor: default;
+	font-family: monospace;
+	background-color: #252525;
+	box-shadow: 0 0 5px #000;
+}
+
+.server-clock {
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: 250px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    font-size: 14pt;
+    z-index: 10;
+    cursor: default;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.main {
+    width: 100%;
+}
+
+.nav-section-bar {
+    width: 80%;
+    height: 30px;
+    margin: 10px auto;
+    overflow: hidden;
+    height: 30px;
+    transition: height .2s;
+}
+
+.nav-section-bar.full {
+
+}
+
+.nav-section-title-container {
+    float: right;
+}
+
+.nav-section-bar-breaker, .nav-section-title {
+    display: inline-block;
+    padding: 0 5px;
+    line-height: 30px;
+    height: 30px;
+    font-size: 10pt;
+    cursor: pointer;
+}
+
+.nav-section-title {
+    background-color: rgba(255, 255, 255, .1);
+    transition: background-color .2s;
+}
+
+.nav-section-title:hover {
+    background-color: rgba(255, 255, 255, .33);
+}
+
+.nav-section-link {
+    padding: 0 5px;
+    line-height: 20px;
+    height: 20px;
+    font-size: 9pt;
+    cursor: pointer;
+    background-color: rgba(255, 255, 255, .1);
+}
+
+.nav-section-link:hover {
+    background-color: rgba(255, 255, 255, .33);
+}
+
+h1 {
+    padding: 0 10%;
+    font-weight: normal;
+    font-size: 20pt;
+}
+
+h1:before {
+    content: "» ";
+}

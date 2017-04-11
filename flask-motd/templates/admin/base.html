@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Source.Python Admin - {% block title %}{% endblock %}</title>
+		<script type="application/javascript" src="/static/motdplayer/motdplayer.js"></script>
+		<link rel="stylesheet" type="text/css" href="/static/motdplayer/motdplayer.css" />
+		<script type="application/javascript">
+			var MOTDPlayer = new MOTDPlayerClass("{{ base64_init_string }}");
+		</script>
+		<script type="application/javascript" src="/static/admin/core/js/main.js"></script>
+		<script type="application/javascript">
+			var app = new APP("{{ context.admin_version }}", "{{ context.admin_author }}", {{ context.server_time }} * 1000, "{{ context.nav_init_b64 }}");
+		</script>
+		<link rel="stylesheet" type="text/css" href="/static/admin/core/css/main.css" />
+        {% block head %}{% endblock %}
+	</head>
+	<body>
+		<div class="logo"></div>
+		{% block body %}
+			<div id="nav-area"></div>
+            <div class="main" id="main">{% block main %}{% endblock %}</div>
+        {% endblock %}
+	</body>
+</html>

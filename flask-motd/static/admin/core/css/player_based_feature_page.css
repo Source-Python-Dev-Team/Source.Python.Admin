@@ -1,0 +1,35 @@
+.player-table {
+    width: 80%;
+    margin: 20px auto 80px auto;
+    border: 2px solid rgba(255, 255, 255, .1);
+}
+
+.player-table tr {
+    height: 30px;
+    line-height: 30px;
+    transition: height .2s;
+}
+
+.player-table tr:hover {
+    height: 50px;
+}
+
+.player-table-userid {
+    width: 80px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 9pt;
+    background-color: rgba(255, 255, 255, .1);
+}
+
+.player-table tr:hover .player-table-userid {
+    background-color: rgba(255, 255, 255, .33);
+}
+
+.player-table-name {
+    text-align: center;
+}
+
+.player-table tr:hover .player-table-name {
+    color: #fa000d;
+}
