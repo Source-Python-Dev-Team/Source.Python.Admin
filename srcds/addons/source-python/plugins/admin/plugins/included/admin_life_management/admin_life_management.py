@@ -6,6 +6,8 @@ from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminMenuSection, PlayerBasedAdminCommand)
+from admin.core.frontends.motd import (
+    main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import log_admin_action
 from admin.core.plugins.strings import PluginStrings
 
@@ -49,6 +51,14 @@ class _ResurrectFeature(PlayerBasedFeature):
 resurrect_feature = _ResurrectFeature()
 
 
+class _SlayPage(PlayerBasedFeaturePage):
+    admin_plugin_id = "admin_life_management"
+    admin_plugin_type = "included"
+    page_id = "slay"
+
+    feature = slay_feature
+
+
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
@@ -66,3 +76,13 @@ resurrect_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
     menu_section,
     plugin_strings['popup_title resurrect']
 ))
+
+
+# =============================================================================
+# >> MOTD ENTRIES
+# =============================================================================
+motd_section = main_motd.add_entry(MOTDSection(
+    main_motd, plugin_strings['section_title'], 'life_management'))
+
+motd_slay_page_entry = motd_section.add_entry(MOTDPageEntry(
+    motd_section, _SlayPage, plugin_strings['popup_title slay'], 'slay'))
