@@ -91,7 +91,7 @@ body {
     transition: background-color .2s;
 }
 
-.nav-section-title:hover {
+.nav-section-title:hover, .nav-section-title:last-child {
     background-color: rgba(255, 255, 255, .33);
 }
 

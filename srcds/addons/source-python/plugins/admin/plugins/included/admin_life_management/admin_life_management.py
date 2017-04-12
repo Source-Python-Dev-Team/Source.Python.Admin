@@ -1,6 +1,10 @@
 # =============================================================================
 # >> IMPORTS
 # =============================================================================
+# Source.Python
+from events import Event
+from players.entity import Player
+
 # Source.Python Admin
 from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
@@ -16,6 +20,8 @@ from admin.core.plugins.strings import PluginStrings
 # >> GLOBAL VARIABLES
 # =============================================================================
 plugin_strings = PluginStrings("admin_life_management")
+_ws_slay_pages = []
+_ws_resurrect_pages = []
 
 
 # =============================================================================
@@ -57,6 +63,42 @@ class _SlayPage(PlayerBasedFeaturePage):
     page_id = "slay"
 
     feature = slay_feature
+    _base_filter = 'all'
+    _ws_base_filter = 'alive'
+
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_slay_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_slay_pages:
+            _ws_slay_pages.remove(self)
+
+
+class _ResurrectPage(PlayerBasedFeaturePage):
+    admin_plugin_id = "admin_life_management"
+    admin_plugin_type = "included"
+    page_id = "resurrect"
+
+    feature = resurrect_feature
+    _base_filter = 'all'
+    _ws_base_filter = 'dead'
+
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_resurrect_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_resurrect_pages:
+            _ws_resurrect_pages.remove(self)
 
 
 # =============================================================================
@@ -86,3 +128,54 @@ motd_section = main_motd.add_entry(MOTDSection(
 
 motd_slay_page_entry = motd_section.add_entry(MOTDPageEntry(
     motd_section, _SlayPage, plugin_strings['popup_title slay'], 'slay'))
+
+motd_resurrect_page_entry = motd_section.add_entry(MOTDPageEntry(
+    motd_section, _ResurrectPage, plugin_strings['popup_title resurrect'],
+    'resurrect'))
+
+
+# =============================================================================
+# >> EVENTS
+# =============================================================================
+@Event('player_death')
+def on_player_death(ev):
+    for ws_slay_page in _ws_slay_pages:
+        ws_slay_page.send_data({
+            'action': "remove-userid",
+            'userid': ev['userid']
+        })
+
+    player = Player.from_userid(ev['userid'])
+    for ws_resurrect_page in _ws_resurrect_pages:
+        if not ws_resurrect_page.filter(player):
+            continue
+
+        ws_resurrect_page.send_data({
+            'action': "add-player",
+            'player': {
+                'userid': ev['userid'],
+                'name': player.name,
+            }
+        })
+
+
+@Event('player_spawn')
+def on_player_spawn(ev):
+    player = Player.from_userid(ev['userid'])
+    for ws_slay_page in _ws_slay_pages:
+        if not ws_slay_page.filter(player):
+            continue
+
+        ws_slay_page.send_data({
+            'action': "add-player",
+            'player': {
+                'userid': ev['userid'],
+                'name': player.name,
+            }
+        })
+
+    for ws_resurrect_page in _ws_resurrect_pages:
+        ws_resurrect_page.send_data({
+            'action': "remove-userid",
+            'userid': ev['userid']
+        })
