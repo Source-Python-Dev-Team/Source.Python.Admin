@@ -2,6 +2,7 @@
 # >> IMPORTS
 # =============================================================================
 # Python
+from configparser import ConfigParser
 from enum import IntEnum
 from time import localtime, strftime, time
 
@@ -21,7 +22,7 @@ from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminMenuSection, PlayerBasedAdminCommand)
 from admin.core.orm import Session
-from admin.core.plugins.config import load_plugin_config
+from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
@@ -50,7 +51,12 @@ def remove_old_database_records():
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
-plugin_config = load_plugin_config("admin_tracking", "config")
+PLUGIN_CONFIG_FILE = get_server_file(
+    ADMIN_CFG_PATH / "included_plugins" / "admin_tracking" / "config.ini")
+
+plugin_config = ConfigParser()
+plugin_config.read(PLUGIN_CONFIG_FILE)
+
 plugin_strings = PluginStrings("admin_tracking")
 
 

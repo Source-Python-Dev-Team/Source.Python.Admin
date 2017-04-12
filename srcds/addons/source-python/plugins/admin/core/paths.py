@@ -11,6 +11,16 @@ from ..info import info
 
 
 # =============================================================================
+# >> FUNCTIONS
+# =============================================================================
+def get_server_file(path):
+    server_path = path.dirname() / (path.namebase + "_server" + path.ext)
+    if server_path.isfile():
+        return server_path
+    return path
+
+
+# =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
 # ../addons/source-python/plugins/admin

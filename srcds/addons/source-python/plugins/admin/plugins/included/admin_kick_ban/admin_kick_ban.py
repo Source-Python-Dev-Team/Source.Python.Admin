@@ -3,6 +3,7 @@
 # =============================================================================
 # Python
 from collections import OrderedDict
+from configparser import ConfigParser
 import json
 from time import time
 
@@ -28,8 +29,7 @@ from admin.core.helpers import (
     extract_ip_address, format_player_name, log_admin_action)
 from admin.core.memory import custom_server
 from admin.core.orm import Session
-from admin.core.paths import ADMIN_DATA_PATH
-from admin.core.plugins.config import load_plugin_config
+from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
@@ -49,26 +49,14 @@ def find_client(steamid):
 
 
 def load_stock_ban_reasons():
-    with open(ADMIN_DATA_PATH / "included_plugins" /
-              "admin_kick_ban" / "ban_reasons.json") as f:
+    with open(get_server_file(
+            ADMIN_CFG_PATH / "included_plugins" / "admin_kick_ban" /
+            "ban_reasons.json")) as f:
 
         ban_reasons_json = json.load(f)
 
-    try:
-        with open(ADMIN_DATA_PATH / "included_plugins" /
-                  "admin_kick_ban" / "ban_reasons_server.json") as f:
-
-            ban_reasons_server_json = json.load(f)
-
-    except FileNotFoundError:
-        ban_reasons_server_json = []
-
     ban_reasons = OrderedDict()
     for ban_reason_json in ban_reasons_json:
-        stock_ban_reason = _StockBanReason(ban_reason_json)
-        ban_reasons[stock_ban_reason.id] = stock_ban_reason
-
-    for ban_reason_json in ban_reasons_server_json:
         stock_ban_reason = _StockBanReason(ban_reason_json)
         ban_reasons[stock_ban_reason.id] = stock_ban_reason
 
@@ -76,24 +64,15 @@ def load_stock_ban_reasons():
 
 
 def load_stock_ban_durations():
-    with open(ADMIN_DATA_PATH / "included_plugins" /
-              "admin_kick_ban" / "ban_durations.json") as f:
+    with open(get_server_file(
+            ADMIN_CFG_PATH / "included_plugins" / "admin_kick_ban" /
+            "ban_durations.json")) as f:
 
         ban_durations_json = json.load(f)
 
-    try:
-        with open(ADMIN_DATA_PATH / "included_plugins" /
-                  "admin_kick_ban" / "ban_durations_server.json") as f:
+    ban_durations_json.sort()
 
-            ban_durations_server_json = json.load(f)
-
-    except FileNotFoundError:
-        ban_durations_server_json = []
-
-    ban_durations = ban_durations_json + ban_durations_server_json
-    ban_durations.sort()
-
-    return ban_durations
+    return ban_durations_json
 
 
 def format_ban_duration(seconds):
@@ -122,7 +101,12 @@ def format_ban_duration(seconds):
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
-plugin_config = load_plugin_config("admin_kick_ban", "config")
+PLUGIN_CONFIG_FILE = get_server_file(
+    ADMIN_CFG_PATH / "included_plugins" / "admin_kick_ban" / "config.ini")
+
+plugin_config = ConfigParser()
+plugin_config.read(PLUGIN_CONFIG_FILE)
+
 plugin_strings = PluginStrings("admin_kick_ban")
 
 
