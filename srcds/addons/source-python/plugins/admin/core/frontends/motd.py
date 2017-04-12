@@ -186,6 +186,8 @@ class BaseFeaturePage(Page, metaclass=FeaturePageMeta):
     feature_page_abstract = True
     feature = None
 
+    ws_support = True
+
 
 class FeaturePage(BaseFeaturePage):
     abstract = True
@@ -195,9 +197,10 @@ class FeaturePage(BaseFeaturePage):
     def on_page_data_received(self, data):
         if data['action'] == "execute":
             client = clients[self.index]
-            self.feature.execute(client)
+            client.sync_execution(self.feature.execute, (client,))
+
             self.send_data({
-                'status': "ok"
+                'feature-executed': "scheduled"
             })
 
 
@@ -206,8 +209,9 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
     page_abstract = True
     feature_page_abstract = True
 
-    # Base filter that will be passed to PlayerIter
-    base_filter = 'all'
+    # Base filters that will be passed to PlayerIter
+    _base_filter = 'all'
+    _ws_base_filter = 'all'
 
     # Allow selecting multiple players at once?
     allow_multiple_choices = True
@@ -217,6 +221,15 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
 
         if ws_instance:
             _ws_player_based_pages.append(self)
+
+    def filter(self, player):
+        if not PlayerIter.filters[self.base_filter](player):
+            return False
+
+        if not self.feature.filter(clients[self.index], player):
+            return False
+
+        return True
 
     def _filter_player_userids(self, client, player_userids):
         """Filter out invalid UserIDs from the given list, return list of
@@ -240,33 +253,54 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
 
         return players
 
+    @property
+    def base_filter(self):
+        return self._ws_base_filter if self.ws_instance else self._base_filter
+
     def on_page_data_received(self, data):
         client = clients[self.index]
 
         if data['action'] == "execute":
             player_userids = data['player_userids']
 
+            def execute_feature(client, userid):
+                self.feature.execute(client, Player.from_userid(userid))
+
             for player in self._filter_player_userids(client, player_userids):
-                self.feature.execute(client, player)
+                client.sync_execution(execute_feature, (client, player.userid))
 
             self.send_data({
-                'status': "ok"
+                'feature-executed': "scheduled"
             })
 
         if data['action'] == "get-players":
-            player_data = []
-            for player in PlayerIter(self.base_filter):
-                if not self.feature.filter(client, player):
-                    continue
+            if self.ws_instance:
+                for player in PlayerIter(self.base_filter):
+                    if not self.feature.filter(client, player):
+                        continue
 
-                player_data.append({
-                    'userid': player.userid,
-                    'name': player.name,
+                    self.send_data({
+                        'action': "add-player",
+                        'player': {
+                            'userid': player.userid,
+                            'name': player.name,
+                        },
+                    })
+
+            else:
+                player_data = []
+                for player in PlayerIter(self.base_filter):
+                    if not self.feature.filter(client, player):
+                        continue
+
+                    player_data.append({
+                        'userid': player.userid,
+                        'name': player.name,
+                    })
+
+                self.send_data({
+                    'players': player_data
                 })
-
-            self.send_data({
-                'players': player_data
-            })
 
     def on_error(self, error):
         if self.ws_instance and self in _ws_player_based_pages:
@@ -434,16 +468,11 @@ main_motd = MOTDPageSection(
 def listener_on_client_active(index):
     player = Player(index)
     for ws_player_based_page in _ws_player_based_pages:
-        client = clients[ws_player_based_page.index]
-
-        if not PlayerIter.filters[ws_player_based_page.base_filter](player):
-            continue
-
-        if not ws_player_based_page.feature.filter(client, player):
+        if not ws_player_based_page.filter(player):
             continue
 
         ws_player_based_page.send_data({
-            'action': 'player-connected',
+            'action': 'add-player',
             'player': {
                 'userid': player.userid,
                 'name': player.name,
@@ -456,6 +485,6 @@ def listener_on_client_disconnect(index):
     userid = userid_from_index(index)
     for ws_player_based_page in _ws_player_based_pages:
         ws_player_based_page.send_data({
-            'action': 'userid-disconnected',
+            'action': 'remove-userid',
             'userid': userid,
         })

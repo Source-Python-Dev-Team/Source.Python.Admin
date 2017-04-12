@@ -13,6 +13,26 @@ MAX_PLAYERS_NUMBER = 256
 
 
 # =============================================================================
+# >> FUNCTIONS
+# =============================================================================
+def filter_userids(userids):
+    new_userids = []
+    for userid in userids:
+        if not isinstance(userid, int):
+            return None
+
+        if not (-MAX_USERID_ABS_VALUE <= userid <= MAX_USERID_ABS_VALUE):
+            return None
+
+        new_userids.append(userid)
+
+    if len(userids) > MAX_PLAYERS_NUMBER:
+        return None
+
+    return new_userids
+
+
+# =============================================================================
 # >> DECORATORS
 # =============================================================================
 def feature_page_ajax_wrap(callback):
@@ -39,21 +59,8 @@ def player_based_feature_page_ajax_wrap(callback):
             if 'player_userids' not in data:
                 return
 
-            player_userids = []
-            for player_userid in data['player_userids']:
-                if not isinstance(player_userid, int):
-                    return
-
-                if not (
-                        -MAX_USERID_ABS_VALUE <=
-                        player_userid <=
-                        MAX_USERID_ABS_VALUE
-                ):
-                    return
-
-                player_userids.append(player_userid)
-
-            if len(player_userids) > MAX_PLAYERS_NUMBER:
+            player_userids = filter_userids(data['player_userids'])
+            if player_userids is None:
                 return
 
             return ex_data_func({
@@ -67,6 +74,34 @@ def player_based_feature_page_ajax_wrap(callback):
             })
 
         return callback(ex_data_func, data)
+
+    return new_callback
+
+
+def player_based_feature_page_ws_wrap(callback):
+    def new_callback(data):
+        if 'action' not in data:
+            return callback(data)
+
+        if data['action'] == "execute":
+            if 'player_userids' not in data:
+                return
+
+            player_userids = filter_userids(data['player_userids'])
+            if player_userids is None:
+                return
+
+            return {
+                'action': "execute",
+                'player_userids': player_userids,
+            }
+
+        if data['action'] == "get-players":
+            return {
+                'action': "get-players",
+            }
+
+        return callback(data)
 
     return new_callback
 

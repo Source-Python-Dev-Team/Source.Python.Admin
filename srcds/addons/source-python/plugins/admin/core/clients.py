@@ -45,4 +45,7 @@ class Client:
         SayText2(strings_common['chat_base'].tokenized(message=message)).send(
             self.player.index)
 
+    def sync_execution(self, callback, args=(), kwargs=None):
+        self.player.delay(0, callback, args, kwargs)
+
 clients = ClientDictionary(Client)

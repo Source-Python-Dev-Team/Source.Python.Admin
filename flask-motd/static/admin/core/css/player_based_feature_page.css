@@ -1,20 +1,41 @@
+@keyframes player-table-row-remove {
+    0% {
+        height: 30px;
+        color: #ffffff;
+    }
+    100% {
+        height: 0;
+        color: #252525;
+    }
+}
+
+@keyframes player-table-row-add {
+    0% {
+        height: 0;
+        background-color: #ffffff;
+    }
+    100% {
+        height: 30px;
+        background-color: transparent;
+    }
+}
+
 .player-table {
     width: 80%;
     margin: 20px auto 80px auto;
     border: 2px solid rgba(255, 255, 255, .1);
 }
 
-.player-table tr {
+.player-table-line {
     height: 30px;
     line-height: 30px;
-    transition: height .2s;
-}
-
-.player-table tr:hover {
-    height: 50px;
+    overflow: hidden;
+    cursor: pointer;
+    animation-duration: 1s;
 }
 
 .player-table-userid {
+    float: left;
     width: 80px;
     text-align: center;
     font-family: monospace;
@@ -22,14 +43,15 @@
     background-color: rgba(255, 255, 255, .1);
 }
 
-.player-table tr:hover .player-table-userid {
+.player-table-line:hover .player-table-userid {
     background-color: rgba(255, 255, 255, .33);
 }
 
 .player-table-name {
+    overflow: hidden;
     text-align: center;
 }
 
-.player-table tr:hover .player-table-name {
+.player-table-line:hover .player-table-name {
     color: #fa000d;
 }
