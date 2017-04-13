@@ -3,7 +3,7 @@ var PLUGIN = function () {
 
     var ANIMATION_DURATION = 1000;
 
-    var PlayerBasedFeaturePage = function () {
+    var PlayerBasedFeaturePage = function (tableNode) {
         var playerBasedFeaturePage = this;
 
         var PlayerEntry = function (userid, name) {
@@ -48,12 +48,7 @@ var PLUGIN = function () {
 
         var playerEntries = [];
 
-        var tableNode = document.createElement('div');
         tableNode.classList.add('player-table');
-
-        this.getNode = function () {
-            return tableNode;
-        };
 
         var clearPlayers = function () {
             playerEntries.forEach(function (val, i, arr) {
@@ -80,26 +75,32 @@ var PLUGIN = function () {
         };
 
         var mode = 'unknown';
-        this.tryWS = function () {
+        this.tryWS = function (wsSuccessCallback, wsMessageCallback, wsCloseCallback, wsErrorCallback) {
             MOTDPlayer.openWSConnection(function () {
                 mode = 'ws';
                 requestPlayers();
+                if (wsSuccessCallback)
+                    wsSuccessCallback();
             }, function (data) {
                 switch (data['action']) {
                     case 'add-player':
-                        console.log(" > adding ", data['player']['userid']);
                         addPlayer(data['player']['userid'], data['player']['name']);
                         break;
                     case 'remove-userid':
-                        console.log(" < removing ", data['userid']);
                         removeUserid(data['userid']);
                         break;
                 }
+                if (wsMessageCallback)
+                    wsMessageCallback(data);
             }, function () {
                 clearPlayers();
+                if (wsCloseCallback)
+                    wsCloseCallback();
             }, function (err) {
                 mode = 'ajax';
                 requestPlayers();
+                if (wsErrorCallback)
+                    wsErrorCallback(err);
             });
         };
 
@@ -111,7 +112,7 @@ var PLUGIN = function () {
                     }, function (data) {
                         clearPlayers();
                         data['players'].forEach(function (val, i, arr) {
-                            var playerEntry = new PlayerEntry(userid, name);
+                            var playerEntry = new PlayerEntry(val.userid, val.name);
                             playerEntry.create(tableNode);
                             playerEntries.push(playerEntry);
                         });
@@ -157,18 +158,8 @@ var PLUGIN = function () {
         };
     };
 
-    this.init = function () {
-        var playerBasedFeaturePage = new PlayerBasedFeaturePage();
-        var playerTableNode = mainNode.appendChild(playerBasedFeaturePage.getNode());
-        playerBasedFeaturePage.tryWS();
+    this.init = function (tableNode, wsSuccessCallback, wsMessageCallback, wsCloseCallback, wsErrorCallback) {
+        playerBasedFeaturePage = new PlayerBasedFeaturePage(tableNode);
+        playerBasedFeaturePage.tryWS(wsSuccessCallback, wsMessageCallback, wsCloseCallback, wsErrorCallback);
     };
-
-    var mainNode;
-    document.addEventListener('AppInit', function (e) {
-        mainNode = document.getElementById('main');
-        plugin.init();
-
-        var pluginInitEvent = new Event('PluginInit');
-        document.dispatchEvent(pluginInitEvent);
-    });
 };

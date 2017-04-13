@@ -7,9 +7,13 @@
     <link rel="stylesheet" type="text/css" href="/static/admin/core/css/player_based_feature_page.css" />
     <script type="application/javascript">
 		var plugin = new PLUGIN();
+		document.addEventListener('AppInit', function (e) {
+		    plugin.init(document.getElementById('admin-player-table'));
+        });
     </script>
 {% endblock %}
 
 {% block main %}
     <h1>Click on the players to resurrect them</h1>
+    <div id="admin-player-table"></div>
 {% endblock %}
