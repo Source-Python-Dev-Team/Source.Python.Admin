@@ -464,7 +464,8 @@ class _LiftReviewedBanPopupFeature(Feature):
         def build_callback(popup, index):
             popup.clear()
 
-            bans = self.banned_uniqueid_manager.get_bans(reviewed=True)
+            # Get all bans
+            bans = self.banned_uniqueid_manager.get_bans()
 
             for uniqueid, banned_player_info in bans:
                 popup.append(PagedOption(
