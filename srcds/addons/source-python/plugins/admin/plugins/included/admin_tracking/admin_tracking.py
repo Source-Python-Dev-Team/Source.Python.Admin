@@ -252,7 +252,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
             if tracked_player.steamid == steamid64:
                 for record in reversed(tracked_player):
                     self._records_to_show.append(_TrackPopupRecord(
-                        steamid,
+                        steamid64,
                         record.ip_address,
                         record.name,
                         record.seen_at,
