@@ -4,6 +4,7 @@
 # Source.Python
 from auth.manager import auth_manager
 from filters.players import PlayerIter
+from listeners.tick import Delay
 from messages import SayText2
 from players.dictionary import PlayerDictionary
 from players.entity import Player
@@ -15,20 +16,50 @@ from .strings import strings_common
 # =============================================================================
 # >> CLASSES
 # =============================================================================
-class ClientDictionary(PlayerDictionary):
-    @staticmethod
-    def broadcast(message):
-        say_text2 = SayText2(strings_common['chat_base'].tokenized(
-            message=message))
+class BaseClient:
+    def has_permission(self, permission):
+        raise NotImplementedError
 
-        for player in PlayerIter('human'):
-            say_text2.send(player.index)
+    @property
+    def name(self):
+        raise NotImplementedError
+
+    @property
+    def steamid(self):
+        raise NotImplementedError
+
+    def sync_execution(self, callback, args=(), kwargs=None):
+        raise NotImplementedError
 
 
-class Client:
+class RemoteClient(BaseClient):
+    name = None
+    steamid = None
+
+    def __init__(self, name, steamid):
+        super().__init__()
+
+        self.name = name
+        self.steamid = steamid
+
+    def has_permission(self, permission):
+        permissions = auth_manager.get_player_permissions_from_steamid(
+            self.steamid)
+
+        if permissions is None:
+            return False
+
+        return permission in permissions
+
+    def sync_execution(self, callback, args=(), kwargs=None):
+        Delay(0, callback, args, kwargs)
+
+
+class Client(BaseClient):
     def __init__(self, index):
-        self.player = Player(index)
+        super().__init__()
 
+        self.player = Player(index)
         self.active_popup = None
 
     def has_permission(self, permission):
@@ -47,5 +78,22 @@ class Client:
 
     def sync_execution(self, callback, args=(), kwargs=None):
         self.player.delay(0, callback, args, kwargs)
+
+    @property
+    def name(self):
+        return self.player.name
+
+    @property
+    def steamid(self):
+        return self.player.steamid
+
+
+class ClientDictionary(PlayerDictionary):
+    @staticmethod
+    def broadcast(message):
+        say_text2 = SayText2(strings_common['chat_base'].tokenized(
+            message=message))
+
+        say_text2.send(PlayerIter('human'))
 
 clients = ClientDictionary(Client)
