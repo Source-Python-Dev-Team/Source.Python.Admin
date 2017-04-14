@@ -17,6 +17,7 @@ from memory.hooks import PostHook
 from menus import PagedMenu, PagedOption, SimpleMenu, SimpleOption, Text
 from players import Client
 from players.helpers import get_client_language
+from steam import SteamID
 from translations.manager import language_manager
 
 # Source.Python Admin
@@ -121,20 +122,26 @@ class _StockBanReason:
 
 
 class _BannedPlayerInfo:
-    def __init__(self, id_, name, banned_by, reviewed, expires_timestamp,
-                 reason, notes):
+    def __init__(self, id_, name, banned_by, reviewed, expires_at, reason,
+                 notes):
 
         self.id = id_
         self.name = name
         self.banned_by = banned_by
         self.reviewed = reviewed
-        self.expires_timestamp = expires_timestamp
+        self.expires_at = expires_at
         self.reason = reason
         self.notes = notes
 
 
 class _BannedUniqueIDManager(dict):
     model = None
+
+    def _convert_uniqueid_to_db_format(self, uniqueid):
+        raise NotImplementedError
+
+    def _convert_steamid_to_db_format(self, steamid):
+        return str(SteamID.parse(steamid).to_uint64())
 
     def refresh(self):
         self.clear()
@@ -148,31 +155,36 @@ class _BannedUniqueIDManager(dict):
             if banned_user.is_unbanned:
                 continue
 
-            if -1 < banned_user.expires_timestamp < current_time:
+            if -1 < banned_user.expires_at < current_time:
                 continue
 
             self[banned_user.uniqueid] = _BannedPlayerInfo(
                 banned_user.id, banned_user.name, banned_user.banned_by,
-                banned_user.reviewed, banned_user.expires_timestamp,
+                banned_user.reviewed, banned_user.expires_at,
                 banned_user.reason, banned_user.notes
             )
 
         session.close()
 
     def is_banned(self, uniqueid):
+        uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
+
         if uniqueid not in self:
             return False
 
-        if self[uniqueid].expires_timestamp < 0:
+        if self[uniqueid].expires_at < 0:
             return True
 
-        if self[uniqueid].expires_timestamp < time():
+        if self[uniqueid].expires_at < time():
             del self[uniqueid]
             return False
 
         return True
 
     def save_ban_to_database(self, banned_by, uniqueid, name, duration):
+        uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
+        banned_by = self._convert_steamid_to_db_format(banned_by)
+
         session = Session()
 
         banned_user = self.model(uniqueid, name, banned_by, duration)
@@ -182,11 +194,14 @@ class _BannedUniqueIDManager(dict):
 
         self[uniqueid] = _BannedPlayerInfo(
             banned_user.id, name, banned_by, False,
-            banned_user.expires_timestamp, "", "")
+            banned_user.expires_at, "", "")
 
         session.close()
 
     def get_bans(self, banned_by=None, reviewed=None):
+        if banned_by is not None:
+            banned_by = self._convert_steamid_to_db_format(banned_by)
+
         current_time = time()
 
         result = []
@@ -203,7 +218,7 @@ class _BannedUniqueIDManager(dict):
             if reviewed is True and not banned_player_info.reviewed:
                 continue
 
-            if banned_player_info.expires_timestamp < current_time:
+            if banned_player_info.expires_at < current_time:
                 continue
 
             result.append((uniqueid, banned_player_info))
@@ -229,11 +244,13 @@ class _BannedUniqueIDManager(dict):
                 continue
 
             banned_player_info.reviewed = True
-            banned_player_info.expires_timestamp = time() + duration
+            banned_player_info.expires_at = time() + duration
             banned_player_info.reason = reason
             break
 
     def lift_ban(self, ban_id, unbanned_by):
+        unbanned_by = self._convert_steamid_to_db_format(unbanned_by)
+
         session = Session()
 
         banned_user = session.query(self.model).filter_by(id=ban_id).first()
@@ -257,7 +274,10 @@ class _BannedUniqueIDManager(dict):
 
 class _BannedSteamIDManager(_BannedUniqueIDManager):
     model = BannedSteamID
-    uniqueid_attr = 'steamid'
+
+    def _convert_uniqueid_to_db_format(self, uniqueid):
+        return self._convert_steamid_to_db_format(uniqueid)
+
 
 # The singleton object for the _BannedSteamIDManager class.
 banned_steamid_manager = _BannedSteamIDManager()
@@ -265,7 +285,9 @@ banned_steamid_manager = _BannedSteamIDManager()
 
 class _BannedIPAddressManager(_BannedUniqueIDManager):
     model = BannedIPAddress
-    uniqueid_attr = 'ip_address'
+
+    def _convert_uniqueid_to_db_format(self, uniqueid):
+        return uniqueid
 
 # The singleton object for the _BannedIPAddressManager class.
 banned_ip_address_manager = _BannedIPAddressManager()

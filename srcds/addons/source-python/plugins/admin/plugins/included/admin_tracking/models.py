@@ -16,7 +16,7 @@ class TrackedPlayerRecord(Base):
     __tablename__ = config['database']['prefix'] + "tracked_player_record"
 
     id = Column(Integer, primary_key=True)
-    steamid = Column(String(32))
+    steamid64 = Column(String(32))
     name = Column(String(64))
     ip_address = Column(String(48))
     seen_at = Column(Integer)

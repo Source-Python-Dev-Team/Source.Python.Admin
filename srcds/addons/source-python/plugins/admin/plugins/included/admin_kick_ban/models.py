@@ -23,8 +23,8 @@ class BannedUser(Base):
     banned_by = Column(String(32))
     reviewed = Column(Boolean)
 
-    banned_timestamp = Column(Integer)
-    expires_timestamp = Column(Integer)
+    banned_at = Column(Integer)
+    expires_at = Column(Integer)
 
     is_unbanned = Column(Boolean)
     unbanned_by = Column(String(32))
@@ -41,8 +41,8 @@ class BannedUser(Base):
         self.name = name
         self.banned_by = banned_by
         self.reviewed = False
-        self.banned_timestamp = int(current_time)
-        self.expires_timestamp = int(current_time + duration)
+        self.banned_at = int(current_time)
+        self.expires_at = int(current_time + duration)
         self.is_unbanned = False
         self.unbanned_by = ""
         self.reason = ""
@@ -50,7 +50,7 @@ class BannedUser(Base):
 
     def review(self, reason, duration):
         self.reviewed = True
-        self.expires_timestamp = int(time() + duration)
+        self.expires_at = int(time() + duration)
         self.reason = reason
 
     def lift_ban(self, unbanned_by):
@@ -61,13 +61,13 @@ class BannedUser(Base):
 class BannedSteamID(BannedUser):
     __tablename__ = config['database']['prefix'] + "banned_steamid"
 
-    steamid = Column(String(32))
+    steamid64 = Column(String(32))
 
     def get_uniqueid(self):
-        return self.steamid
+        return self.steamid64
 
     def set_uniqueid(self, uniqueid):
-        self.steamid = uniqueid
+        self.steamid64 = uniqueid
 
     uniqueid = property(get_uniqueid, set_uniqueid)
 

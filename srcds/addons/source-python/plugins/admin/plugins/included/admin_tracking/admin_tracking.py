@@ -13,6 +13,7 @@ from listeners.tick import GameThread
 from menus import PagedMenu, PagedOption, SimpleMenu, Text
 from players.dictionary import PlayerDictionary
 from players.entity import Player
+from steam import SteamID
 
 # Source.Python Admin
 from admin.admin import main_menu
@@ -75,10 +76,17 @@ class _TrackedPlayer(list):
         super().__init__()
 
         self.player = Player(index)
-        self.steamid = self.player.steamid
+        self.steamid = None
+        if not (
+                self.player.is_fake_client() or
+                self.player.is_hltv() or
+                'BOT' in self.player.steamid
+        ):
+
+            self.steamid = str(SteamID.parse(self.player.steamid).to_uint64())
 
     def track(self, name=None):
-        if 'BOT' in self.steamid:
+        if self.steamid is None:
             return
 
         self.append(_Record(
@@ -88,7 +96,7 @@ class _TrackedPlayer(list):
         ))
 
     def save_to_database(self):
-        if 'BOT' in self.steamid:
+        if self.steamid is None:
             return
 
         session = Session()
@@ -96,7 +104,7 @@ class _TrackedPlayer(list):
         db_record = (
             session
             .query(DB_Record)
-            .filter_by(steamid=self.steamid)
+            .filter_by(steamid64=self.steamid)
             .order_by(DB_Record.seen_at.desc())
             .first()
         )
@@ -115,7 +123,7 @@ class _TrackedPlayer(list):
                 continue
 
             db_record = DB_Record()
-            db_record.steamid = self.steamid
+            db_record.steamid64 = self.steamid
             db_record.name = record.name
             db_record.ip_address = record.ip_address
             db_record.seen_at = record.seen_at
@@ -237,10 +245,11 @@ class _TrackPopupFeature(PlayerBasedFeature):
 
     def _show_records_for_steamid(self, client, steamid):
         self._records_to_show = []
+        steamid64 = str(SteamID.parse(steamid).to_uint64())
 
         # Firstly, add live records (if player is on the server)
         for tracked_player in tracked_players.values():
-            if tracked_player.steamid == steamid:
+            if tracked_player.steamid == steamid64:
                 for record in reversed(tracked_player):
                     self._records_to_show.append(_TrackPopupRecord(
                         steamid,
@@ -258,7 +267,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
         db_records = (
             session
                 .query(DB_Record)
-                .filter_by(steamid=steamid)
+                .filter_by(steamid64=steamid64)
                 .order_by(DB_Record.seen_at.desc())
                 .all()
         )
@@ -267,7 +276,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
 
         for db_record in db_records:
             self._records_to_show.append(_TrackPopupRecord(
-                db_record.steamid,
+                db_record.steamid64,
                 db_record.ip_address,
                 db_record.name,
                 db_record.seen_at,
@@ -314,13 +323,13 @@ class _TrackPopupFeature(PlayerBasedFeature):
         session.close()
 
         for db_record in db_records:
-            if db_record.steamid in seen_steamids:
+            if db_record.steamid64 in seen_steamids:
                 continue
 
-            seen_steamids.append(db_record.steamid)
+            seen_steamids.append(db_record.steamid64)
 
             self._records_to_show.append(_TrackPopupRecord(
-                db_record.steamid,
+                db_record.steamid64,
                 db_record.ip_address,
                 db_record.name,
                 db_record.seen_at,
@@ -330,7 +339,12 @@ class _TrackPopupFeature(PlayerBasedFeature):
         client.send_popup(self.record_popup)
 
     def execute(self, client, player):
-        if player.is_fake_client() or player.is_hltv():
+        if (
+                player.is_fake_client() or
+                player.is_hltv() or
+                'BOT' in player.steamid
+        ):
+
             client.tell(plugin_strings['error bot_cannot_track'])
             return
 
