@@ -8,28 +8,28 @@ from motdplayer_applications.admin.wrp import WebRequestProcessor
 # =============================================================================
 # >> CONSTANTS
 # =============================================================================
-MAX_USERID_ABS_VALUE = 100000000
-MAX_PLAYERS_NUMBER = 256
+MAX_PLAYER_ID_LENGTH = 20
+MAX_PLAYERS_NUMBER = 1
 
 
 # =============================================================================
 # >> FUNCTIONS
 # =============================================================================
-def filter_userids(userids):
-    new_userids = []
-    for userid in userids:
-        if not isinstance(userid, int):
+def filter_ids(player_ids):
+    new_player_ids = []
+    for player_id in player_ids:
+        if not (isinstance(player_id, str) or isinstance(player_id, int)):
             return None
 
-        if not (-MAX_USERID_ABS_VALUE <= userid <= MAX_USERID_ABS_VALUE):
+        if len(str(player_id).encode('utf-8')) > MAX_PLAYER_ID_LENGTH:
             return None
 
-        new_userids.append(userid)
+        new_player_ids.append(player_id)
 
-    if len(userids) > MAX_PLAYERS_NUMBER:
+    if len(new_player_ids) > MAX_PLAYERS_NUMBER:
         return None
 
-    return new_userids
+    return new_player_ids
 
 
 # =============================================================================
@@ -56,16 +56,16 @@ def player_based_feature_page_ajax_wrap(callback):
             return callback(ex_data_func, data)
 
         if data['action'] == "execute":
-            if 'player_userids' not in data:
+            if 'player_ids' not in data:
                 return
 
-            player_userids = filter_userids(data['player_userids'])
-            if player_userids is None:
+            player_ids = filter_ids(data['player_ids'])
+            if player_ids is None:
                 return
 
             return ex_data_func({
                 'action': "execute",
-                'player_userids': player_userids,
+                'player_ids': player_ids,
             })
 
         if data['action'] == "get-players":
@@ -84,16 +84,16 @@ def player_based_feature_page_ws_wrap(callback):
             return callback(data)
 
         if data['action'] == "execute":
-            if 'player_userids' not in data:
+            if 'player_ids' not in data:
                 return
 
-            player_userids = filter_userids(data['player_userids'])
-            if player_userids is None:
+            player_ids = filter_ids(data['player_ids'])
+            if player_ids is None:
                 return
 
             return {
                 'action': "execute",
-                'player_userids': player_userids,
+                'player_ids': player_ids,
             }
 
         if data['action'] == "get-players":

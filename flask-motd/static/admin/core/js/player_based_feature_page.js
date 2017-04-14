@@ -6,10 +6,10 @@ var PLUGIN = function () {
     var PlayerBasedFeaturePage = function (tableNode) {
         var playerBasedFeaturePage = this;
 
-        var PlayerEntry = function (userid, name) {
+        var PlayerEntry = function (id, name) {
             var playerEntry = this;
 
-            this.userid = userid;
+            this.id = id;
             this.name = name;
 
             var lineNode;
@@ -17,8 +17,8 @@ var PLUGIN = function () {
                 lineNode = node.appendChild(document.createElement('div'));
                 lineNode.classList.add('player-table-line');
                 var cellNode = lineNode.appendChild(document.createElement('div'));
-                cellNode.appendChild(document.createTextNode(playerEntry.userid));
-                cellNode.classList.add('player-table-userid');
+                cellNode.appendChild(document.createTextNode(playerEntry.id));
+                cellNode.classList.add('player-table-id');
                 cellNode = lineNode.appendChild(document.createElement('div'));
                 cellNode.appendChild(document.createTextNode(playerEntry.name));
                 cellNode.classList.add('player-table-name');
@@ -26,12 +26,12 @@ var PLUGIN = function () {
                 lineNode.style.animationName = "player-table-row-add";
 
                 lineNode.addEventListener('click', function (e) {
-                    if (playerEntry.userid > -1)
-                        executeOnPlayer(playerEntry.userid);
+                    if (playerEntry.id)
+                        executeOnPlayer(playerEntry.id);
                 });
             };
             this.destroy = function () {
-                playerEntry.userid = -1;
+                playerEntry.id = undefined;
                 lineNode.style.animationName = "player-table-row-remove";
                 setTimeout(function () {
                     if (lineNode)
@@ -40,7 +40,7 @@ var PLUGIN = function () {
                 }, ANIMATION_DURATION);
             };
             this.destroyNoDelay = function () {
-                playerEntry.userid = -1;
+                playerEntry.id = -1;
                 lineNode.parentNode.removeChild(lineNode);
                 lineNode = undefined;
             };
@@ -56,16 +56,16 @@ var PLUGIN = function () {
             });
             playerEntries = [];
         };
-        var addPlayer = function (userid, name) {
-            removeUserid(userid);
-            var playerEntry = new PlayerEntry(userid, name);
+        var addPlayer = function (id, name) {
+            removeId(id);
+            var playerEntry = new PlayerEntry(id, name);
             playerEntry.create(tableNode);
             playerEntries.push(playerEntry);
         };
-        var removeUserid = function (userid) {
+        var removeId = function (id) {
             var invalidEntries = [];
             playerEntries.forEach(function (val, i, arr) {
-                if (val.userid == userid)
+                if (val.id == id)
                     invalidEntries.push(val);
             });
             invalidEntries.forEach(function (val, i, arr) {
@@ -84,10 +84,10 @@ var PLUGIN = function () {
             }, function (data) {
                 switch (data['action']) {
                     case 'add-player':
-                        addPlayer(data['player']['userid'], data['player']['name']);
+                        addPlayer(data['player']['id'], data['player']['name']);
                         break;
-                    case 'remove-userid':
-                        removeUserid(data['userid']);
+                    case 'remove-id':
+                        removeId(data['id']);
                         break;
                 }
                 if (wsMessageCallback)
@@ -112,7 +112,7 @@ var PLUGIN = function () {
                     }, function (data) {
                         clearPlayers();
                         data['players'].forEach(function (val, i, arr) {
-                            var playerEntry = new PlayerEntry(val.userid, val.name);
+                            var playerEntry = new PlayerEntry(val.id, val.name);
                             playerEntry.create(tableNode);
                             playerEntries.push(playerEntry);
                         });
@@ -129,17 +129,17 @@ var PLUGIN = function () {
             }
         };
 
-        var executeOnPlayer = function (userid) {
+        var executeOnPlayer = function (id) {
             switch (mode) {
                 case 'ajax':
                     MOTDPlayer.post({
                         action: 'execute',
-                        player_userids: [userid, ],
+                        player_ids: [id, ],
                     }, function (data) {
                         if (data['status'] == "ok") ;  // TODO: Display success popup
                         clearPlayers();
                         data['players'].forEach(function (val, i, arr) {
-                            var playerEntry = new PlayerEntry(userid, name);
+                            var playerEntry = new PlayerEntry(id, name);
                             playerEntry.create(tableNode);
                             playerEntries.push(playerEntry);
                         });
@@ -151,7 +151,7 @@ var PLUGIN = function () {
                 case 'ws':
                     MOTDPlayer.sendWSData({
                         action: 'execute',
-                        player_userids: [userid, ],
+                        player_ids: [id, ],
                     });
                     break;
             }

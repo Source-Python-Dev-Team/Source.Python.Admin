@@ -204,45 +204,37 @@ class FeaturePage(BaseFeaturePage):
             })
 
 
-class PlayerBasedFeaturePage(BaseFeaturePage):
+class BasePlayerBasedFeaturePage(BaseFeaturePage):
     abstract = True
     page_abstract = True
     feature_page_abstract = True
 
-    # Base filters that will be passed to PlayerIter
-    _base_filter = 'all'
-    _ws_base_filter = 'all'
-
     # Allow selecting multiple players at once?
     allow_multiple_choices = True
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
-
-        if ws_instance:
-            _ws_player_based_pages.append(self)
-
     def filter(self, player):
-        if not PlayerIter.filters[self.base_filter](player):
-            return False
-
         if not self.feature.filter(clients[self.index], player):
             return False
 
         return True
 
-    def _filter_player_userids(self, client, player_userids):
-        """Filter out invalid UserIDs from the given list, return list of
-        :class:`players.entity.Player` instances.
+    def _get_player_id(self, player):
+        raise NotImplementedError
+
+    def _iter(self):
+        raise NotImplementedError
+
+    def _filter_player_ids(self, client, player_ids):
+        """Filter out invalid IDs from the given list.
 
         :param client: Client that performs the action.
-        :param list player_userids: Unfiltered list of UserIDs.
+        :param list player_ids: Unfiltered list of IDs.
         :return: Filtered list of :class:`players.entity.Player` instances.
         :rtype: list
         """
         players = []
-        for player in PlayerIter(self.base_filter):
-            if player.userid not in player_userids:
+        for player in self._iter():
+            if self._get_player_id(player) not in player_ids:
                 continue
 
             # Does player still fit our conditions?
@@ -253,21 +245,18 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
 
         return players
 
-    @property
-    def base_filter(self):
-        return self._ws_base_filter if self.ws_instance else self._base_filter
+    def _execute(self, client, id_):
+        raise NotImplementedError
 
     def on_page_data_received(self, data):
         client = clients[self.index]
 
         if data['action'] == "execute":
-            player_userids = data['player_userids']
+            player_ids = data['player_ids']
 
-            def execute_feature(client, userid):
-                self.feature.execute(client, Player.from_userid(userid))
-
-            for player in self._filter_player_userids(client, player_userids):
-                client.sync_execution(execute_feature, (client, player.userid))
+            for player in self._filter_player_ids(client, player_ids):
+                client.sync_execution(
+                    self._execute, (client, self._get_player_id(player)))
 
             self.send_data({
                 'feature-executed': "scheduled"
@@ -275,26 +264,26 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
 
         if data['action'] == "get-players":
             if self.ws_instance:
-                for player in PlayerIter(self.base_filter):
+                for player in self._iter():
                     if not self.feature.filter(client, player):
                         continue
 
                     self.send_data({
                         'action': "add-player",
                         'player': {
-                            'userid': player.userid,
+                            'id': self._get_player_id(player),
                             'name': player.name,
                         },
                     })
 
             else:
                 player_data = []
-                for player in PlayerIter(self.base_filter):
+                for player in self._iter():
                     if not self.feature.filter(client, player):
                         continue
 
                     player_data.append({
-                        'userid': player.userid,
+                        'id': self._get_player_id(player),
                         'name': player.name,
                     })
 
@@ -305,6 +294,44 @@ class PlayerBasedFeaturePage(BaseFeaturePage):
     def on_error(self, error):
         if self.ws_instance and self in _ws_player_based_pages:
             _ws_player_based_pages.remove(self)
+
+
+class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
+    abstract = True
+    page_abstract = True
+    feature_page_abstract = True
+
+    # Base filters that will be passed to PlayerIter
+    _base_filter = 'all'
+    _ws_base_filter = 'all'
+
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_player_based_pages.append(self)
+
+    @property
+    def base_filter(self):
+        return self._ws_base_filter if self.ws_instance else self._base_filter
+
+    def _get_player_id(self, player):
+        return player.userid
+
+    def _iter(self):
+        yield from PlayerIter(self.base_filter)
+
+    def _execute(self, client, id_):
+        self.feature.execute(client, Player.from_userid(id_))
+
+    def filter(self, player):
+        if not PlayerIter.filters[self.base_filter](player):
+            return False
+
+        if not super().filter(player):
+            return False
+
+        return True
 
 
 class MOTDEntry:
@@ -474,7 +501,7 @@ def listener_on_client_active(index):
         ws_player_based_page.send_data({
             'action': 'add-player',
             'player': {
-                'userid': player.userid,
+                'id': player.userid,
                 'name': player.name,
             },
         })
@@ -485,6 +512,6 @@ def listener_on_client_disconnect(index):
     userid = userid_from_index(index)
     for ws_player_based_page in _ws_player_based_pages:
         ws_player_based_page.send_data({
-            'action': 'remove-userid',
-            'userid': userid,
+            'action': 'remove-id',
+            'id': userid,
         })

@@ -141,8 +141,8 @@ motd_resurrect_page_entry = motd_section.add_entry(MOTDPageEntry(
 def on_player_death(ev):
     for ws_slay_page in _ws_slay_pages:
         ws_slay_page.send_data({
-            'action': "remove-userid",
-            'userid': ev['userid']
+            'action': "remove-id",
+            'id': ev['userid']
         })
 
     player = Player.from_userid(ev['userid'])
@@ -153,7 +153,7 @@ def on_player_death(ev):
         ws_resurrect_page.send_data({
             'action': "add-player",
             'player': {
-                'userid': ev['userid'],
+                'id': ev['userid'],
                 'name': player.name,
             }
         })
@@ -169,13 +169,13 @@ def on_player_spawn(ev):
         ws_slay_page.send_data({
             'action': "add-player",
             'player': {
-                'userid': ev['userid'],
+                'id': ev['userid'],
                 'name': player.name,
             }
         })
 
     for ws_resurrect_page in _ws_resurrect_pages:
         ws_resurrect_page.send_data({
-            'action': "remove-userid",
-            'userid': ev['userid']
+            'action': "remove-id",
+            'id': ev['userid']
         })

@@ -34,16 +34,16 @@
     animation-duration: 1s;
 }
 
-.player-table-userid {
+.player-table-id {
     float: left;
-    width: 80px;
+    width: 200px;
     text-align: center;
     font-family: monospace;
     font-size: 9pt;
     background-color: rgba(255, 255, 255, .1);
 }
 
-.player-table-line:hover .player-table-userid {
+.player-table-line:hover .player-table-id {
     background-color: rgba(255, 255, 255, .33);
 }
 
