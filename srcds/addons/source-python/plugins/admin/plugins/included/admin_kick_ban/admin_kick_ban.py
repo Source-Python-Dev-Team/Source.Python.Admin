@@ -700,64 +700,72 @@ stock_ban_reasons = load_stock_ban_reasons()
 stock_ban_durations = load_stock_ban_durations()
 
 menu_section = main_menu.add_entry(AdminMenuSection(
-    main_menu, plugin_strings['section_title']))
+    main_menu, plugin_strings['section_title main']))
 
-lift_steamid_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
-lift_ip_address_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
+menu_section_steamid = menu_section.add_entry(AdminMenuSection(
+    menu_section, plugin_strings['section_title steamid_bans']))
+
+menu_section_ip_address = menu_section.add_entry(AdminMenuSection(
+    menu_section, plugin_strings['section_title ip_address_bans']))
+
+lift_steamid_ban_popup_feature.ban_popup.parent_menu = (
+    menu_section_steamid.popup)
+lift_ip_address_ban_popup_feature.ban_popup.parent_menu = (
+    menu_section_ip_address.popup)
 lift_reviewed_steamid_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section.popup)
+    menu_section_steamid.popup)
 lift_reviewed_ip_address_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section.popup)
-review_steamid_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
-review_ip_address_ban_popup_feature.ban_popup.parent_menu = menu_section.popup
+    menu_section_ip_address.popup)
+review_steamid_ban_popup_feature.ban_popup.parent_menu = (
+    menu_section_steamid.popup)
+review_ip_address_ban_popup_feature.ban_popup.parent_menu = (
+    menu_section_ip_address.popup)
 
 kick_menu_command = menu_section.add_entry(_KickMenuCommand(
     kick_feature,
     menu_section,
     plugin_strings['popup_title kick']
 ))
-ban_steamid_menu_command = menu_section.add_entry(_BanSteamIDMenuCommand(
-    ban_steamid_feature,
-    menu_section,
-    plugin_strings['popup_title ban_steamid']
-))
-ban_ip_address_menu_command = menu_section.add_entry(_BanIPAddressMenuCommand(
-    ban_ip_address_feature,
-    menu_section,
-    plugin_strings['popup_title ban_ip_address']
-))
-review_steamid_ban_menu_command = menu_section.add_entry(AdminCommand(
-    review_steamid_ban_popup_feature,
-    menu_section,
-    plugin_strings['popup_title review_steamid']
-))
-review_ip_address_ban_menu_command = menu_section.add_entry(AdminCommand(
-    review_ip_address_ban_popup_feature,
-    menu_section,
-    plugin_strings['popup_title review_ip_address']
-))
-lift_steamid_ban_menu_command = menu_section.add_entry(AdminCommand(
-    lift_steamid_ban_popup_feature,
-    menu_section,
-    plugin_strings['popup_title lift_steamid']
-))
-lift_ip_address_ban_menu_command = menu_section.add_entry(AdminCommand(
-    lift_ip_address_ban_popup_feature,
-    menu_section,
-    plugin_strings['popup_title lift_ip_address']
-))
-lift_reviewed_steamid_ban_menu_command = menu_section.add_entry(AdminCommand(
-    lift_reviewed_steamid_ban_popup_feature,
-    menu_section,
-    plugin_strings['popup_title lift_reviewed_steamid']
-))
-lift_reviewed_ip_address_ban_menu_command = menu_section.add_entry(
+ban_steamid_menu_command = menu_section_steamid.add_entry(
+    _BanSteamIDMenuCommand(
+        ban_steamid_feature,
+        menu_section_steamid,
+        plugin_strings['popup_title ban_steamid']))
+ban_ip_address_menu_command = menu_section_ip_address.add_entry(
+    _BanIPAddressMenuCommand(
+        ban_ip_address_feature,
+        menu_section_ip_address,
+        plugin_strings['popup_title ban_ip_address']))
+review_steamid_ban_menu_command = menu_section_steamid.add_entry(
+    AdminCommand(
+        review_steamid_ban_popup_feature,
+        menu_section_steamid,
+        plugin_strings['popup_title review_steamid']))
+review_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
+    AdminCommand(
+        review_ip_address_ban_popup_feature,
+        menu_section_ip_address,
+        plugin_strings['popup_title review_ip_address']))
+lift_steamid_ban_menu_command = menu_section_steamid.add_entry(
+    AdminCommand(
+        lift_steamid_ban_popup_feature,
+        menu_section_steamid,
+        plugin_strings['popup_title lift_steamid']))
+lift_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
+    AdminCommand(
+        lift_ip_address_ban_popup_feature,
+        menu_section_ip_address,
+        plugin_strings['popup_title lift_ip_address']))
+lift_reviewed_steamid_ban_menu_command = menu_section_steamid.add_entry(
+    AdminCommand(
+        lift_reviewed_steamid_ban_popup_feature,
+        menu_section_steamid,
+        plugin_strings['popup_title lift_reviewed_steamid']))
+lift_reviewed_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
     AdminCommand(
         lift_reviewed_ip_address_ban_popup_feature,
-        menu_section,
-        plugin_strings['popup_title lift_reviewed_ip_address']
-    )
-)
+        menu_section_ip_address,
+        plugin_strings['popup_title lift_reviewed_ip_address']))
 
 
 # =============================================================================
