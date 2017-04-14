@@ -41,8 +41,8 @@ class BannedUser(Base):
         self.name = name
         self.banned_by = banned_by
         self.reviewed = False
-        self.banned_timestamp = current_time
-        self.expires_timestamp = current_time + duration
+        self.banned_timestamp = int(current_time)
+        self.expires_timestamp = int(current_time + duration)
         self.is_unbanned = False
         self.unbanned_by = ""
         self.reason = ""
@@ -50,7 +50,7 @@ class BannedUser(Base):
 
     def review(self, reason, duration):
         self.reviewed = True
-        self.expires_timestamp = time() + duration
+        self.expires_timestamp = int(time() + duration)
         self.reason = reason
 
     def lift_ban(self, unbanned_by):

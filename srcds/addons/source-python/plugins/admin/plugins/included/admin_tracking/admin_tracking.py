@@ -84,7 +84,7 @@ class _TrackedPlayer(list):
         self.append(_Record(
             extract_ip_address(self.player.address),
             self.player.name if name is None else name,
-            time()
+            int(time())
         ))
 
     def save_to_database(self):
