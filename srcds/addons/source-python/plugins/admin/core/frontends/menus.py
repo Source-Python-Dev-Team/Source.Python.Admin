@@ -209,7 +209,7 @@ class PlayerBasedSelectionFrame:
     """This class describes a selected option of the player-based menu."""
     # Current player list of targets (don't store Player instances in case
     # somebody disconnects)
-    player_userids = None
+    player_ids = None
 
     # In multiple selection mode?
     selecting_multiple = False
@@ -230,17 +230,14 @@ class PlayerBasedMenuDraft:
         self.options = []
 
 
-class PlayerBasedAdminCommand(AdminCommand):
+class BasePlayerBasedAdminCommand(AdminCommand):
     """Base class for entry that is bound to perform a command on the players.
     """
-    # Base filter that will be passed to PlayerIter
-    base_filter = 'all'
-
     # Allow selecting multiple players at once?
     allow_multiple_choices = True
 
     def __init__(self, feature, parent, title, id_=None):
-        """Initialize PlayerBasedAdminCommand instance.
+        """Initialize BasePlayerBasedAdminCommand instance.
 
         :param feature: PlayerBasedFeature instance this entry is bound to
         execute.
@@ -280,10 +277,10 @@ class PlayerBasedAdminCommand(AdminCommand):
                     if frame.selecting_multiple:
 
                         # Were any players selected?
-                        if frame.player_userids:
+                        if frame.player_ids:
 
                             # Call selection callback with them then and return
-                            self._player_select(client, frame.player_userids)
+                            self._player_select(client, frame.player_ids)
                             return
 
                         # Toggle selecting_multiple flag
@@ -301,7 +298,7 @@ class PlayerBasedAdminCommand(AdminCommand):
 
                         # Call selection callback with newly selected player
                         # and return
-                        self._player_select(client, frame.player_userids)
+                        self._player_select(client, frame.player_ids)
                         return
 
                 # Determine the title (plural or singular form)
@@ -313,35 +310,35 @@ class PlayerBasedAdminCommand(AdminCommand):
                 draft.title = draft.title.tokenized(base=title)
 
                 # Filter unavailable players out of the menu
-                selected_players = self._filter_player_userids(
-                    client, frame.player_userids)
-                selected_player_userids = [
-                    player.userid for player in selected_players]
+                selected_players = self._filter_player_ids(
+                    client, frame.player_ids)
+                selected_player_ids = [
+                    self._get_player_id(player) for player in selected_players]
 
                 if selecting_multiple:
 
                     # Multi-selection mode
-                    for player in PlayerIter(self.base_filter):
+                    for player in self._iter():
                         if not self.feature.filter(client, player):
                             continue
 
-                        player_userids = selected_player_userids[:]
-                        if player.userid in player_userids:
+                        player_ids = selected_player_ids[:]
+                        if self._get_player_id(player) in player_ids:
 
                             # This option appears if a player is selected
                             # - its player list will lack this player
-                            player_userids.remove(player.userid)
+                            player_ids.remove(self._get_player_id(player))
                             string = strings_menus['select_player selected']
                         else:
 
                             # This option appears if a player is not selected
                             # - its player list will contain this player
-                            player_userids.append(player.userid)
+                            player_ids.append(self._get_player_id(player))
                             string = strings_menus['select_player unselected']
 
                         # Create a selection frame for this player
                         new_frame = PlayerBasedSelectionFrame()
-                        new_frame.player_userids = player_userids
+                        new_frame.player_ids = player_ids
                         new_frame.selecting_multiple = True
                         new_frame.special_toggle_multiple = False
 
@@ -353,7 +350,7 @@ class PlayerBasedAdminCommand(AdminCommand):
 
                     # Create a "Ready"/"Select single" selection frame
                     new_frame = PlayerBasedSelectionFrame()
-                    new_frame.player_userids = selected_player_userids
+                    new_frame.player_ids = selected_player_ids
                     new_frame.selecting_multiple = True
                     new_frame.special_toggle_multiple = True
 
@@ -373,7 +370,7 @@ class PlayerBasedAdminCommand(AdminCommand):
                     # Single-selection mode
                     # Create a "Select multiple" selection frame
                     new_frame = PlayerBasedSelectionFrame()
-                    new_frame.player_userids = selected_player_userids
+                    new_frame.player_ids = selected_player_ids
                     new_frame.selecting_multiple = False
                     new_frame.special_toggle_multiple = True
 
@@ -384,17 +381,17 @@ class PlayerBasedAdminCommand(AdminCommand):
                         value=new_frame
                     ))
 
-                    for player in PlayerIter(self.base_filter):
+                    for player in self._iter():
                         if not self.feature.filter(client, player):
                             continue
 
-                        player_userids = selected_player_userids + [
-                            player.userid]
+                        player_ids = selected_player_ids + [
+                            self._get_player_id(player)]
 
                         string = strings_menus['select_player single']
 
                         new_frame = PlayerBasedSelectionFrame()
-                        new_frame.player_userids = player_userids
+                        new_frame.player_ids = player_ids
                         new_frame.selecting_multiple = False
                         new_frame.special_toggle_multiple = False
 
@@ -418,7 +415,7 @@ class PlayerBasedAdminCommand(AdminCommand):
                 client = clients[index]
 
                 # Call selection callback with newly selected player
-                self._player_select(client, frame.player_userids)
+                self._player_select(client, frame.player_ids)
 
         @self.popup.register_build_callback
         def build_callback(popup, index):
@@ -441,7 +438,7 @@ class PlayerBasedAdminCommand(AdminCommand):
 
                     # Create a "Select multiple" selection frame
                     new_frame = PlayerBasedSelectionFrame()
-                    new_frame.player_userids = []
+                    new_frame.player_ids = []
                     new_frame.selecting_multiple = False
                     new_frame.special_toggle_multiple = True
 
@@ -453,16 +450,16 @@ class PlayerBasedAdminCommand(AdminCommand):
                     ))
 
                 # Add proper players to the draft
-                for player in PlayerIter(self.base_filter):
+                for player in self._iter():
                     if not self.feature.filter(client, player):
                         continue
 
-                    player_userids = [player.userid]
+                    player_ids = [self._get_player_id(player)]
 
                     string = strings_menus['select_player single']
 
                     new_frame = PlayerBasedSelectionFrame()
-                    new_frame.player_userids = player_userids
+                    new_frame.player_ids = player_ids
                     new_frame.selecting_multiple = False
                     new_frame.special_toggle_multiple = False
 
@@ -478,18 +475,23 @@ class PlayerBasedAdminCommand(AdminCommand):
             # Set draft back to None
             self._draft = None
 
-    def _filter_player_userids(self, client, player_userids):
-        """Filter out invalid UserIDs from the given list, return list of
-        :class:`players.entity.Player` instances.
+    def _get_player_id(self, player):
+        raise NotImplementedError
+
+    def _iter(self):
+        raise NotImplementedError
+
+    def _filter_player_ids(self, client, player_ids):
+        """Filter out invalid IDs from the given list.
 
         :param client: Client that performs the action.
-        :param list player_userids: Unfiltered list of UserIDs.
+        :param list player_ids: Unfiltered list of IDs.
         :return: Filtered list of :class:`players.entity.Player` instances.
         :rtype: list
         """
         players = []
-        for player in PlayerIter(self.base_filter):
-            if player.userid not in player_userids:
+        for player in self._iter():
+            if self._get_player_id(player) not in player_ids:
                 continue
 
             # Does player still fit our conditions?
@@ -500,17 +502,17 @@ class PlayerBasedAdminCommand(AdminCommand):
 
         return players
 
-    def _player_select(self, client, player_userids):
-        """Filter out invalid userids and call player_select with a list of
+    def _player_select(self, client, player_ids):
+        """Filter out invalid IDs and call player_select with a list of
         :class:`players.entity.Player` instances.
 
         :param client: Client that performs the action.
-        :param list player_userids: Unfiltered list of UserIDs.
+        :param list player_ids: Unfiltered list of IDs.
         """
 
         client.active_popup = None
 
-        for player in self._filter_player_userids(client, player_userids):
+        for player in self._filter_player_ids(client, player_ids):
             self.feature.execute(client, player)
 
         # Does client still not have an active popup?
@@ -535,3 +537,13 @@ class PlayerBasedAdminCommand(AdminCommand):
             return
 
         client.send_popup(self.popup)
+
+
+class PlayerBasedAdminCommand(BasePlayerBasedAdminCommand):
+    base_filter = 'all'
+
+    def _get_player_id(self, player):
+        return player.userid
+
+    def _iter(self):
+        yield from PlayerIter(self.base_filter)

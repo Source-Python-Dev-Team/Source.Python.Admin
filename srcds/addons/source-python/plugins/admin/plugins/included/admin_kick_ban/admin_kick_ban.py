@@ -3,7 +3,7 @@
 # =============================================================================
 # Python
 from collections import OrderedDict
-from configparser import ConfigParser
+
 import json
 from time import time
 
@@ -16,6 +16,7 @@ from memory import make_object
 from memory.hooks import PostHook
 from menus import PagedMenu, PagedOption, SimpleMenu, SimpleOption, Text
 from players import Client
+from players.entity import Player
 from players.helpers import get_client_language
 from steam import SteamID
 from translations.manager import language_manager
@@ -34,6 +35,9 @@ from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
 
 # Included Plugin
+from .config import plugin_config
+from .left_player import (
+    LeftPlayerBasedAdminCommand, LeftPlayerBasedFeature, LeftPlayerIter)
 from .models import BannedIPAddress, BannedSteamID
 
 
@@ -102,12 +106,6 @@ def format_ban_duration(seconds):
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
-PLUGIN_CONFIG_FILE = get_server_file(
-    ADMIN_CFG_PATH / "included_plugins" / "admin_kick_ban" / "config.ini")
-
-plugin_config = ConfigParser()
-plugin_config.read(PLUGIN_CONFIG_FILE)
-
 plugin_strings = PluginStrings("admin_kick_ban")
 
 
@@ -312,78 +310,86 @@ class _KickFeature(PlayerBasedFeature):
 kick_feature = _KickFeature()
 
 
-class _BanSteamIDFeature(PlayerBasedFeature):
+class _BanSteamIDFeature(LeftPlayerBasedFeature):
     flag = "admin.admin_kick_ban.ban_steamid"
     allow_execution_on_self = False
 
-    def execute(self, client, player):
-        if player.is_fake_client() or player.is_hltv():
+    def execute(self, client, left_player):
+        if left_player.is_fake_client() or left_player.is_hltv():
             client.tell(plugin_strings['error bot_cannot_ban'])
             return
 
-        if banned_steamid_manager.is_banned(player.steamid):
+        if banned_steamid_manager.is_banned(left_player.steamid):
             client.tell(plugin_strings['error already_ban_in_effect'])
             return
 
-        language = get_client_language(player.index)
+        try:
+            player = Player.from_userid(left_player.userid)
+        except (OverflowError, ValueError):
+            pass
+        else:
+            language = get_client_language(player.index)
 
-        # Save player name and SteamID so that we don't crash when accessing
-        # properties of a disconnected player
-        player_name = player.name
-        player_steamid = player.steamid
-
-        # Disconnect the player
-        player.kick(plugin_strings['default_ban_reason'].get_string(language))
+            # Disconnect the player
+            player.kick(
+                plugin_strings['default_ban_reason'].get_string(language))
 
         duration = int(plugin_config['settings']['default_ban_time_seconds'])
 
         GameThread(
             target=banned_steamid_manager.save_ban_to_database,
-            args=(client.steamid, player_steamid, player_name, duration)
+            args=(
+                client.steamid,
+                left_player.steamid,
+                left_player.name,
+                duration
+            )
         ).start()
 
         log_admin_action(plugin_strings['message banned'].tokenized(
             admin_name=client.name,
-            player_name=player_name,
+            player_name=left_player.name,
         ))
 
 # The singleton object of the _BanSteamIDFeature class.
 ban_steamid_feature = _BanSteamIDFeature()
 
 
-class _BanIPAddressFeature(PlayerBasedFeature):
+class _BanIPAddressFeature(LeftPlayerBasedFeature):
     flag = "admin.admin_kick_ban.ban_ip_address"
     allow_execution_on_self = False
 
-    def execute(self, client, player):
-        if player.is_fake_client() or player.is_hltv():
+    def execute(self, client, left_player):
+        if left_player.is_fake_client() or left_player.is_hltv():
             client.tell(plugin_strings['error bot_cannot_ban'])
             return
 
-        ip_address = extract_ip_address(player.address)
+        ip_address = extract_ip_address(left_player.address)
         if banned_ip_address_manager.is_banned(ip_address):
             client.tell(plugin_strings['error already_ban_in_effect'])
             return
 
-        language = get_client_language(player.index)
+        try:
+            player = Player.from_userid(left_player.userid)
+        except (OverflowError, ValueError):
+            pass
+        else:
+            language = get_client_language(player.index)
 
-        # Save player name so that we don't crash when accessing properties
-        # of a disconnected player
-        player_name = player.name
-
-        # Disconnect the player
-        player.kick(plugin_strings['default_ban_reason'].get_string(language))
+            # Disconnect the player
+            player.kick(
+                plugin_strings['default_ban_reason'].get_string(language))
 
         duration = int(plugin_config['settings']['default_ban_time_seconds'])
 
         GameThread(
             target=banned_ip_address_manager.save_ban_to_database,
-            args=(client.steamid, ip_address, player_name, duration)
+            args=(client.steamid, ip_address, left_player.name, duration)
         ).start()
 
         log_admin_action(plugin_strings['message banned'].tokenized(
             admin_name=client.name,
-            player_name=player_name,
+            player_name=left_player.name,
         ))
 
 # The singleton object of the _BanIPAddressFeature class.
@@ -669,28 +675,43 @@ class _KickMenuCommand(PlayerBasedAdminCommand):
     allow_multiple_choices = False
 
 
-class _BanSteamIDMenuCommand(PlayerBasedAdminCommand):
+class _BanSteamIDMenuCommand(LeftPlayerBasedAdminCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 
     @staticmethod
-    def render_player_name(player):
+    def render_player_name(left_player):
         return plugin_strings['player_name'].tokenized(
-            name=format_player_name(player.name),
-            id=player.steamid
+            name=format_player_name(left_player.name),
+            id=left_player.steamid
         )
 
+    def _iter(self):
+        for left_player in LeftPlayerIter(self.base_filter):
+            if banned_steamid_manager.is_banned(left_player.steamid):
+                continue
 
-class _BanIPAddressMenuCommand(PlayerBasedAdminCommand):
+            yield left_player
+
+
+class _BanIPAddressMenuCommand(LeftPlayerBasedAdminCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 
     @staticmethod
-    def render_player_name(player):
+    def render_player_name(left_player):
         return plugin_strings['player_name'].tokenized(
-            name=format_player_name(player.name),
-            id=extract_ip_address(player.address)
+            name=format_player_name(left_player.name),
+            id=extract_ip_address(left_player.address)
         )
+
+    def _iter(self):
+        for left_player in LeftPlayerIter(self.base_filter):
+            ip_address = extract_ip_address(left_player.address)
+            if banned_ip_address_manager.is_banned(ip_address):
+                continue
+
+            yield left_player
 
 
 # =============================================================================
