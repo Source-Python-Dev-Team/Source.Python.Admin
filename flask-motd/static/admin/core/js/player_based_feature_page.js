@@ -97,8 +97,10 @@ var PLUGIN = function () {
                 if (wsCloseCallback)
                     wsCloseCallback();
             }, function (err) {
-                mode = 'ajax';
-                requestPlayers();
+                if (mode == 'unknown') {
+                    mode = 'ajax';
+                    requestPlayers();
+                }
                 if (wsErrorCallback)
                     wsErrorCallback(err);
             });
