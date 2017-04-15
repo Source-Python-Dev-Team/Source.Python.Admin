@@ -27,6 +27,8 @@ from admin.core.clients import clients
 from admin.core.features import Feature, PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminCommand, AdminMenuSection, PlayerBasedAdminCommand)
+from admin.core.frontends.motd import (
+    main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import (
     extract_ip_address, format_player_name, log_admin_action)
 from admin.core.memory import custom_server
@@ -37,7 +39,8 @@ from admin.core.plugins.strings import PluginStrings
 # Included Plugin
 from .config import plugin_config
 from .left_player import (
-    LeftPlayerBasedAdminCommand, LeftPlayerBasedFeature, LeftPlayerIter)
+    LeftPlayerBasedAdminCommand, LeftPlayerBasedFeature,
+    LeftPlayerBasedFeaturePage, LeftPlayerIter)
 from .models import BannedIPAddress, BannedSteamID
 
 
@@ -714,6 +717,55 @@ class _BanIPAddressMenuCommand(LeftPlayerBasedAdminCommand):
             yield left_player
 
 
+class _KickPage(PlayerBasedFeaturePage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "kick"
+
+    feature = kick_feature
+    _base_filter = 'all'
+    _ws_base_filter = 'all'
+
+
+class _BanSteamIDPage(LeftPlayerBasedFeaturePage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "ban_steamid"
+
+    feature = ban_steamid_feature
+    _base_filter = 'human'
+    _ws_base_filter = 'human'
+
+    def filter(self, left_player):
+        if not super().filter(left_player):
+            return False
+
+        if banned_steamid_manager.is_banned(left_player.steamid):
+            return False
+
+        return True
+
+
+class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "ban_ip_address"
+
+    feature = ban_ip_address_feature
+    _base_filter = 'human'
+    _ws_base_filter = 'human'
+
+    def filter(self, left_player):
+        if not super().filter(left_player):
+            return False
+
+        ip_address = extract_ip_address(left_player.address)
+        if banned_ip_address_manager.is_banned(ip_address):
+            return False
+
+        return True
+
+
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
@@ -787,6 +839,32 @@ lift_reviewed_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
         lift_reviewed_ip_address_ban_popup_feature,
         menu_section_ip_address,
         plugin_strings['popup_title lift_reviewed_ip_address']))
+
+
+# =============================================================================
+# >> MOTD ENTRIES
+# =============================================================================
+motd_section = main_motd.add_entry(MOTDSection(
+    main_motd, plugin_strings['section_title main'], 'kick_ban'))
+
+motd_section_steamid = motd_section.add_entry(MOTDSection(
+    motd_section, plugin_strings['section_title steamid_bans'], 'steamid'))
+
+motd_section_ip_address = motd_section.add_entry(MOTDSection(
+    motd_section, plugin_strings['section_title ip_address_bans'],
+    'ip_address'))
+
+motd_kick_page_entry = motd_section.add_entry(MOTDPageEntry(
+    motd_section, _KickPage, plugin_strings['popup_title kick'], 'kick'))
+
+motd_ban_steamid_page_entry = motd_section_steamid.add_entry(MOTDPageEntry(
+    motd_section_steamid, _BanSteamIDPage,
+    plugin_strings['popup_title ban_steamid'], 'ban_steamid'))
+
+motd_ban_ip_address_page_entry = motd_section_ip_address.add_entry(
+    MOTDPageEntry(
+        motd_section_ip_address, _BanIPAddressPage,
+        plugin_strings['popup_title ban_ip_address'], 'ban_ip_address'))
 
 
 # =============================================================================
