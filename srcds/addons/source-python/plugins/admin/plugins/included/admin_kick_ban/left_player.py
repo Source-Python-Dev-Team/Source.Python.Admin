@@ -77,6 +77,16 @@ class LeftPlayerIter(PlayerIter):
 for _filter_name, _filter_func in PlayerIter.filters.items():
     LeftPlayerIter.register_filter(_filter_name, _filter_func)
 
+# Replace bot and human filters with their improved alternatives that work
+# in the OnClientActive listener
+# TODO: Suggest an improvement for these filters to Source.Python team
+LeftPlayerIter.unregister_filter('bot')
+LeftPlayerIter.unregister_filter('human')
+LeftPlayerIter.register_filter('bot', lambda left_player: (
+    left_player.is_fake_client() or 'BOT' in left_player.steamid))
+LeftPlayerIter.register_filter('human', lambda left_player: (
+    not left_player.is_fake_client() and 'BOT' not in left_player.steamid))
+
 
 class LeftPlayerBasedFeature(BaseFeature):
     # Allow clients to execute this feature on themselves?
