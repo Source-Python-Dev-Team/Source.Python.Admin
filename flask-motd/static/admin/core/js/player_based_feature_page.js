@@ -40,7 +40,7 @@ var PLUGIN = function () {
                 }, ANIMATION_DURATION);
             };
             this.destroyNoDelay = function () {
-                playerEntry.id = -1;
+                playerEntry.id = undefined;
                 lineNode.parentNode.removeChild(lineNode);
                 lineNode = undefined;
             };
