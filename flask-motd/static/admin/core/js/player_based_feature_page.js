@@ -114,9 +114,7 @@ var PLUGIN = function () {
                     }, function (data) {
                         clearPlayers();
                         data['players'].forEach(function (val, i, arr) {
-                            var playerEntry = new PlayerEntry(val.id, val.name);
-                            playerEntry.create(tableNode);
-                            playerEntries.push(playerEntry);
+                            addPlayer(val['id'], val['name']);
                         });
                     }, function (err) {
                         // TODO: Display error
@@ -141,9 +139,7 @@ var PLUGIN = function () {
                         if (data['status'] == "ok") ;  // TODO: Display success popup
                         clearPlayers();
                         data['players'].forEach(function (val, i, arr) {
-                            var playerEntry = new PlayerEntry(id, name);
-                            playerEntry.create(tableNode);
-                            playerEntries.push(playerEntry);
+                            addPlayer(val['id'], val['name']);
                         });
                     }, function (err) {
                         // TODO: Display error
