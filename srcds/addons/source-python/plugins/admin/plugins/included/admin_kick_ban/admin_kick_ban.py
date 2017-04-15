@@ -110,6 +110,8 @@ def format_ban_duration(seconds):
 # >> GLOBAL VARIABLES
 # =============================================================================
 plugin_strings = PluginStrings("admin_kick_ban")
+_ws_ban_steamid_pages = []
+_ws_ban_ip_address_pages = []
 
 
 # =============================================================================
@@ -349,6 +351,9 @@ class _BanSteamIDFeature(LeftPlayerBasedFeature):
             )
         ).start()
 
+        for ws_ban_steamid_page in _ws_ban_steamid_pages:
+            ws_ban_steamid_page.send_remove_id(left_player)
+
         log_admin_action(plugin_strings['message banned'].tokenized(
             admin_name=client.name,
             player_name=left_player.name,
@@ -389,6 +394,9 @@ class _BanIPAddressFeature(LeftPlayerBasedFeature):
             target=banned_ip_address_manager.save_ban_to_database,
             args=(client.steamid, ip_address, left_player.name, duration)
         ).start()
+
+        for ws_ban_ip_address_page in _ws_ban_ip_address_pages:
+            ws_ban_ip_address_page.send_remove_id(left_player)
 
         log_admin_action(plugin_strings['message banned'].tokenized(
             admin_name=client.name,
@@ -736,6 +744,12 @@ class _BanSteamIDPage(LeftPlayerBasedFeaturePage):
     _base_filter = 'human'
     _ws_base_filter = 'human'
 
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_ban_steamid_pages.append(self)
+
     def filter(self, left_player):
         if not super().filter(left_player):
             return False
@@ -744,6 +758,12 @@ class _BanSteamIDPage(LeftPlayerBasedFeaturePage):
             return False
 
         return True
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_ban_steamid_pages:
+            _ws_ban_steamid_pages.remove(self)
 
 
 class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
@@ -755,6 +775,12 @@ class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
     _base_filter = 'human'
     _ws_base_filter = 'human'
 
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_ban_ip_address_pages.append(self)
+
     def filter(self, left_player):
         if not super().filter(left_player):
             return False
@@ -764,6 +790,12 @@ class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
             return False
 
         return True
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_ban_ip_address_pages:
+            _ws_ban_ip_address_pages.remove(self)
 
 
 # =============================================================================
