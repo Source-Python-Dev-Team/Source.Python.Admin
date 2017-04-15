@@ -10,7 +10,7 @@ from time import time
 from filters.players import PlayerIter
 from listeners import OnClientActive, OnClientDisconnect
 from players.entity import Player
-from players.helpers import get_client_language, userid_from_index
+from players.helpers import get_client_language
 
 # Source.Python Admin
 from ...info import info
@@ -240,7 +240,7 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
                 continue
 
             # Does player still fit our conditions?
-            if not self.feature.filter(client, player):
+            if not self.filter(player):
                 continue
 
             players.append(player)
@@ -248,6 +248,9 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
         return players
 
     def _execute(self, client, id_):
+        raise NotImplementedError
+
+    def _render_player_name(self, player):
         raise NotImplementedError
 
     def on_page_data_received(self, data):
@@ -267,21 +270,15 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
         if data['action'] == "get-players":
             if self.ws_instance:
                 for player in self._iter():
-                    if not self.feature.filter(client, player):
+                    if not self.filter(player):
                         continue
 
-                    self.send_data({
-                        'action': "add-player",
-                        'player': {
-                            'id': self._get_player_id(player),
-                            'name': player.name,
-                        },
-                    })
+                    self.send_add_player(player)
 
             else:
                 player_data = []
                 for player in self._iter():
-                    if not self.feature.filter(client, player):
+                    if not self.filter(player):
                         continue
 
                     player_data.append({
@@ -292,6 +289,21 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
                 self.send_data({
                     'players': player_data
                 })
+
+    def send_add_player(self, player):
+        self.send_data({
+            'action': "add-player",
+            'player': {
+                'id': self._get_player_id(player),
+                'name': self._render_player_name(player),
+            },
+        })
+
+    def send_remove_id(self, player):
+        self.send_data({
+            'action': 'remove-id',
+            'id': self._get_player_id(player),
+        })
 
 
 class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
@@ -330,6 +342,9 @@ class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
             return False
 
         return True
+
+    def _render_player_name(self, player):
+        return player.name
 
     def on_error(self, error):
         if self.ws_instance and self in _ws_player_based_pages:
@@ -500,20 +515,11 @@ def listener_on_client_active(index):
         if not ws_player_based_page.filter(player):
             continue
 
-        ws_player_based_page.send_data({
-            'action': 'add-player',
-            'player': {
-                'id': player.userid,
-                'name': player.name,
-            },
-        })
+        ws_player_based_page.send_add_player(player)
 
 
 @OnClientDisconnect
 def listener_on_client_disconnect(index):
-    userid = userid_from_index(index)
+    player = Player(index)
     for ws_player_based_page in _ws_player_based_pages:
-        ws_player_based_page.send_data({
-            'action': 'remove-id',
-            'id': userid,
-        })
+        ws_player_based_page.send_remove_id(player)
