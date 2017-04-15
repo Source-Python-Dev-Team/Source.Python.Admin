@@ -28,10 +28,12 @@ except ImportError:
 
     motdplayer = None
 
+
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
 _ws_player_based_pages = []
+
 
 # =============================================================================
 # >> CLASSES
@@ -291,10 +293,6 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
                     'players': player_data
                 })
 
-    def on_error(self, error):
-        if self.ws_instance and self in _ws_player_based_pages:
-            _ws_player_based_pages.remove(self)
-
 
 class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
     abstract = True
@@ -332,6 +330,10 @@ class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
             return False
 
         return True
+
+    def on_error(self, error):
+        if self.ws_instance and self in _ws_player_based_pages:
+            _ws_player_based_pages.remove(self)
 
 
 class MOTDEntry:
