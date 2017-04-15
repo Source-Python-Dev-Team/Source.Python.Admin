@@ -204,6 +204,7 @@ class FeaturePage(BaseFeaturePage):
             self.send_data({
                 'feature-executed': "scheduled"
             })
+            return
 
 
 class BasePlayerBasedFeaturePage(BaseFeaturePage):
@@ -266,6 +267,7 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
             self.send_data({
                 'feature-executed': "scheduled"
             })
+            return
 
         if data['action'] == "get-players":
             if self.ws_instance:
@@ -289,6 +291,7 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
                 self.send_data({
                     'players': player_data
                 })
+            return
 
     def send_add_player(self, player):
         self.send_data({
