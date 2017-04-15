@@ -89,6 +89,8 @@ LeftPlayerIter.register_filter('human', lambda left_player: (
 
 
 class LeftPlayerBasedFeature(BaseFeature):
+    feature_abstract = True
+
     # Allow clients to execute this feature on themselves?
     allow_execution_on_self = True
 

@@ -170,10 +170,6 @@ class AdminCommand(AdminMenuEntry):
         if not default:
             return False
 
-        # Do we even need to check the permission?
-        if self.feature.flag is None:
-            return True
-
         return client.has_permission(self.feature.flag)
 
     def is_selectable(self, client):
@@ -186,10 +182,6 @@ class AdminCommand(AdminMenuEntry):
         default = super().is_selectable(client)
         if not default:
             return False
-
-        # Do we even need to check the permission?
-        if self.feature.flag is None:
-            return True
 
         return client.has_permission(self.feature.flag)
 

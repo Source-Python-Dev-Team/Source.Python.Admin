@@ -7,12 +7,33 @@ from .clients import clients
 # =============================================================================
 # >> CLASSES
 # =============================================================================
-class BaseFeature:
+class FeatureMeta(type):
+    def __init__(cls, name, bases, namespace):
+        super().__init__(name, bases, namespace)
+
+        if namespace.get('feature_abstract', False):
+            del cls.feature_abstract
+            return
+
+        if not hasattr(cls, 'flag'):
+            raise ValueError("Class '{}' doesn't have 'flag' "
+                             "attribute".format(cls))
+
+        if cls.flag is None:
+            raise ValueError("Class '{}' has its 'flag' "
+                             "attribute set to None".format(cls))
+
+
+class BaseFeature(metaclass=FeatureMeta):
+    feature_abstract = True
+
     # Required permission in Source.Python auth system to execute this feature
     flag = None
 
 
 class Feature(BaseFeature):
+    feature_abstract = True
+
     def execute(self, client):
         """Execute the feature.
 
@@ -22,6 +43,8 @@ class Feature(BaseFeature):
 
 
 class PlayerBasedFeature(BaseFeature):
+    feature_abstract = True
+
     # Allow clients to execute this feature on themselves?
     allow_execution_on_self = True
 
