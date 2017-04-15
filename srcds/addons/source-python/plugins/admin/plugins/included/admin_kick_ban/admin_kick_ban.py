@@ -24,11 +24,12 @@ from translations.manager import language_manager
 # Source.Python Admin
 from admin.admin import main_menu
 from admin.core.clients import clients
-from admin.core.features import Feature, PlayerBasedFeature
+from admin.core.features import BaseFeature, Feature, PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminCommand, AdminMenuSection, PlayerBasedAdminCommand)
 from admin.core.frontends.motd import (
-    main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
+    BaseFeaturePage, main_motd, MOTDSection, MOTDPageEntry,
+    PlayerBasedFeaturePage)
 from admin.core.helpers import (
     extract_ip_address, format_player_name, log_admin_action)
 from admin.core.memory import custom_server
@@ -112,6 +113,8 @@ def format_ban_duration(seconds):
 plugin_strings = PluginStrings("admin_kick_ban")
 _ws_ban_steamid_pages = []
 _ws_ban_ip_address_pages = []
+_ws_lift_steamid_pages = []
+_ws_lift_ip_address_pages = []
 
 
 # =============================================================================
@@ -405,6 +408,54 @@ class _BanIPAddressFeature(LeftPlayerBasedFeature):
 
 # The singleton object of the _BanIPAddressFeature class.
 ban_ip_address_feature = _BanIPAddressFeature()
+
+
+class _LiftBanMOTDFeature(BaseFeature):
+    banned_uniqueid_manager = None
+    ws_lift_ban_pages = None
+
+    def get_bans(self, client):
+        bans = self.banned_uniqueid_manager.get_bans(
+            banned_by=client.steamid, reviewed=False)
+
+        for uniqueid, banned_player_info in bans:
+            yield uniqueid, banned_player_info
+
+    def get_ban_by_id(self, client, ban_id):
+        for uniqueid, banned_player_info in self.get_bans(client):
+            if banned_player_info.id == ban_id:
+                return banned_player_info
+        return None
+
+    def execute(self, client, ban_id, player_name):
+        GameThread(
+            target=self.banned_uniqueid_manager.lift_ban,
+            args=(ban_id, client.steamid)
+        ).start()
+
+        for ws_lift_ban_page in self.ws_lift_ban_pages:
+            ws_lift_ban_page.send_remove_ban_id(ban_id)
+
+        log_admin_action(plugin_strings['message ban_lifted'].tokenized(
+            admin_name=client.name,
+            player_name=player_name,
+        ))
+
+
+class _LiftSteamIDBanMOTDFeature(_LiftBanMOTDFeature):
+    banned_uniqueid_manager = banned_steamid_manager
+    ws_lift_ban_pages = _ws_lift_steamid_pages
+
+# The singleton object of the _LiftSteamIDBanMOTDFeature class.
+lift_steamid_ban_motd_feature = _LiftSteamIDBanMOTDFeature()
+
+
+class _LiftIPAddressBanMOTDFeature(_LiftBanMOTDFeature):
+    banned_uniqueid_manager = banned_ip_address_manager
+    ws_lift_ban_pages = _ws_lift_ip_address_pages
+
+# The singleton object of the _LiftSteamIDBanMOTDFeature class.
+lift_ip_address_ban_motd_feature = _LiftIPAddressBanMOTDFeature()
 
 
 class _LiftBanPopupFeature(Feature):
@@ -798,6 +849,98 @@ class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
             _ws_ban_ip_address_pages.remove(self)
 
 
+class _BaseLiftBanPage(BaseFeaturePage):
+    abstract = True
+    page_abstract = True
+    feature_page_abstract = True
+
+    def send_remove_ban_id(self, ban_id):
+        self.send_data({
+            'action': 'remove-ban-id',
+            'banId': ban_id,
+        })
+
+
+class _LiftBanPage(_BaseLiftBanPage):
+    abstract = True
+    page_abstract = True
+    feature_page_abstract = True
+
+    def on_page_data_received(self, data):
+        client = clients[self.index]
+
+        if data['action'] == "execute":
+            ban_id = data['banId']
+
+            banned_player_info = self.feature.get_ban_by_id(client, ban_id)
+            if banned_player_info is None:
+
+                # Might just as well log the ban id and the client, looks like
+                # this client has tried to lift somebody else's ban
+                return
+
+            client.sync_execution(self.feature.execute, (
+                client, banned_player_info.id, banned_player_info.name))
+
+            self.send_data({
+                'feature-executed': "scheduled"
+            })
+            return
+
+        if data['action'] == "get-bans":
+            ban_data = []
+
+            for uniqueid, banned_player_info in self.feature.get_bans(client):
+                ban_data.append({
+                    'uniqueid': uniqueid,
+                    'banId': banned_player_info.id,
+                    'name': banned_player_info.name,
+                })
+
+            self.send_data({
+                'action': "bans",
+                'bans': ban_data,
+            })
+
+
+class _LiftSteamIDBanPage(_LiftBanPage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "lift_steamid"
+    feature = lift_steamid_ban_motd_feature
+
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_lift_steamid_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_lift_steamid_pages:
+            _ws_lift_steamid_pages.remove(self)
+
+
+class _LiftIPAddressBanPage(_LiftBanPage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "lift_ip_address"
+    feature = lift_ip_address_ban_motd_feature
+
+    def __init__(self, index, ws_instance):
+        super().__init__(index, ws_instance)
+
+        if ws_instance:
+            _ws_lift_ip_address_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.ws_instance and self in _ws_lift_ip_address_pages:
+            _ws_lift_ip_address_pages.remove(self)
+
+
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
@@ -897,6 +1040,16 @@ motd_ban_ip_address_page_entry = motd_section_ip_address.add_entry(
     MOTDPageEntry(
         motd_section_ip_address, _BanIPAddressPage,
         plugin_strings['popup_title ban_ip_address'], 'ban_ip_address'))
+
+motd_lift_steamid_ban_page_entry = motd_section_steamid.add_entry(
+    MOTDPageEntry(
+        motd_section_steamid, _LiftSteamIDBanPage,
+        plugin_strings['popup_title lift_steamid'], 'lift_steamid'))
+
+motd_lift_ip_address_ban_page_entry = motd_section_ip_address.add_entry(
+    MOTDPageEntry(
+        motd_section_ip_address, _LiftIPAddressBanPage,
+        plugin_strings['popup_title lift_ip_address'], 'lift_ip_address'))
 
 
 # =============================================================================

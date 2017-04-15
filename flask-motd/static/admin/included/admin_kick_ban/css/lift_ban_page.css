@@ -1,0 +1,57 @@
+@keyframes ban-table-row-remove {
+    0% {
+        height: 30px;
+        color: #ffffff;
+    }
+    100% {
+        height: 0;
+        color: #252525;
+    }
+}
+
+@keyframes ban-table-row-add {
+    0% {
+        height: 0;
+        background-color: #ffffff;
+    }
+    100% {
+        height: 30px;
+        background-color: transparent;
+    }
+}
+
+.ban-table {
+    width: 80%;
+    margin: 20px auto 80px auto;
+    border: 2px solid rgba(255, 255, 255, .1);
+}
+
+.ban-table-line {
+    height: 30px;
+    line-height: 30px;
+    overflow: hidden;
+    cursor: pointer;
+    animation-duration: 1s;
+}
+
+.ban-table-uniqueid {
+    float: left;
+    width: 200px;
+    text-align: center;
+    font-family: monospace;
+    font-size: 9pt;
+    background-color: rgba(255, 255, 255, .1);
+}
+
+.ban-table-line:hover .ban-table-uniqueid {
+    background-color: rgba(255, 255, 255, .33);
+}
+
+.ban-table-name {
+    overflow: hidden;
+    text-align: center;
+}
+
+.ban-table-line:hover .ban-table-name {
+    color: #fa000d;
+}

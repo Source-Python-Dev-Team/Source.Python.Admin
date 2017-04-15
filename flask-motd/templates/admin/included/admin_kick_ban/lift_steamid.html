@@ -1,0 +1,19 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Access Restriction - Lift SteamID Ban{% endblock %}
+
+{% block head %}
+    <script type="application/javascript" src="/static/admin/included/admin_kick_ban/js/lift_ban_page.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/admin/included/admin_kick_ban/css/lift_ban_page.css" />
+    <script type="application/javascript">
+		var plugin = new PLUGIN();
+		document.addEventListener('AppInit', function (e) {
+		    plugin.init(document.getElementById('admin-ban-table'));
+        });
+    </script>
+{% endblock %}
+
+{% block main %}
+    <h1>Click on the ban entries to lift them</h1>
+    <div id="admin-ban-table"></div>
+{% endblock %}
