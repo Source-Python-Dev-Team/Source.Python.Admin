@@ -115,6 +115,8 @@ _ws_ban_steamid_pages = []
 _ws_ban_ip_address_pages = []
 _ws_lift_steamid_pages = []
 _ws_lift_ip_address_pages = []
+_ws_review_steamid_ban_pages = []
+_ws_review_ip_address_ban_pages = []
 
 
 # =============================================================================
@@ -411,6 +413,7 @@ ban_ip_address_feature = _BanIPAddressFeature()
 
 
 class _LiftBanMOTDFeature(BaseFeature):
+    feature_abstract = True
     banned_uniqueid_manager = None
     ws_lift_ban_pages = None
 
@@ -443,6 +446,7 @@ class _LiftBanMOTDFeature(BaseFeature):
 
 
 class _LiftSteamIDBanMOTDFeature(_LiftBanMOTDFeature):
+    flag = "admin.admin_kick_ban.ban_steamid"
     banned_uniqueid_manager = banned_steamid_manager
     ws_lift_ban_pages = _ws_lift_steamid_pages
 
@@ -451,6 +455,7 @@ lift_steamid_ban_motd_feature = _LiftSteamIDBanMOTDFeature()
 
 
 class _LiftIPAddressBanMOTDFeature(_LiftBanMOTDFeature):
+    flag = "admin.admin_kick_ban.ban_ip_address"
     banned_uniqueid_manager = banned_ip_address_manager
     ws_lift_ban_pages = _ws_lift_ip_address_pages
 
@@ -459,6 +464,7 @@ lift_ip_address_ban_motd_feature = _LiftIPAddressBanMOTDFeature()
 
 
 class _LiftBanPopupFeature(Feature):
+    feature_abstract = True
     popup_title = None
     banned_uniqueid_manager = None
 
@@ -518,6 +524,7 @@ lift_ip_address_ban_popup_feature = _LiftIPAddressBanPopupFeature()
 
 
 class _LiftReviewedBanPopupFeature(Feature):
+    feature_abstract = True
     popup_title = None
     banned_uniqueid_manager = None
 
@@ -612,12 +619,65 @@ class _LiftReviewedIPAddressBanPopupFeature(_LiftReviewedBanPopupFeature):
     popup_title = plugin_strings['popup_title lift_reviewed_ip_address']
     banned_uniqueid_manager = banned_ip_address_manager
 
-# The singleton object of the _LiftReviewedSteamIDBanPopupFeature class.
+# The singleton object of the _LiftReviewedIPAddressBanPopupFeature class.
 lift_reviewed_ip_address_ban_popup_feature = (
     _LiftReviewedIPAddressBanPopupFeature())
 
 
+class _ReviewBanMOTDFeature(BaseFeature):
+    feature_abstract = True
+    banned_uniqueid_manager = None
+    ws_review_ban_pages = None
+
+    def get_bans(self, client):
+        bans = self.banned_uniqueid_manager.get_bans(
+            banned_by=client.steamid, reviewed=False)
+
+        for uniqueid, banned_player_info in bans:
+            yield uniqueid, banned_player_info
+
+    def get_ban_by_id(self, client, ban_id):
+        for uniqueid, banned_player_info in self.get_bans(client):
+            if banned_player_info.id == ban_id:
+                return banned_player_info
+        return None
+
+    def execute(self, client, ban_id, player_name, reason, duration):
+        GameThread(
+            target=self.banned_uniqueid_manager.review_ban,
+            args=(ban_id, reason, duration)
+        ).start()
+
+        for ws_review_ban_page in self.ws_review_ban_pages:
+            ws_review_ban_page.send_remove_ban_id(ban_id)
+
+        log_admin_action(plugin_strings['message ban_reviewed'].tokenized(
+            admin_name=client.name,
+            player_name=player_name,
+            duration=format_ban_duration(duration)
+        ))
+
+
+class _ReviewSteamIDBanMOTDFeature(_ReviewBanMOTDFeature):
+    flag = "admin.admin_kick_ban.ban_steamid"
+    banned_uniqueid_manager = banned_steamid_manager
+    ws_review_ban_pages = _ws_review_steamid_ban_pages
+
+# The singleton object of the _ReviewSteamIDBanMOTDFeature class.
+review_steamid_ban_motd_feature = _ReviewSteamIDBanMOTDFeature()
+
+
+class _ReviewIPAddressBanMOTDFeature(_ReviewBanMOTDFeature):
+    flag = "admin.admin_kick_ban.ban_ip_address"
+    banned_uniqueid_manager = banned_ip_address_manager
+    ws_review_ban_pages = _ws_review_ip_address_ban_pages
+
+# The singleton object of the _ReviewIPAddressBanMOTDFeature class.
+review_ip_address_ban_motd_feature = _ReviewIPAddressBanMOTDFeature()
+
+
 class _ReviewBanPopupFeature(Feature):
+    feature_abstract = True
     popup_title = None
     banned_uniqueid_manager = None
 
@@ -795,10 +855,10 @@ class _BanSteamIDPage(LeftPlayerBasedFeaturePage):
     _base_filter = 'human'
     _ws_base_filter = 'human'
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_ban_steamid_pages.append(self)
 
     def filter(self, left_player):
@@ -813,7 +873,7 @@ class _BanSteamIDPage(LeftPlayerBasedFeaturePage):
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_ban_steamid_pages:
+        if self.is_websocket and self in _ws_ban_steamid_pages:
             _ws_ban_steamid_pages.remove(self)
 
 
@@ -826,10 +886,10 @@ class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
     _base_filter = 'human'
     _ws_base_filter = 'human'
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_ban_ip_address_pages.append(self)
 
     def filter(self, left_player):
@@ -845,11 +905,11 @@ class _BanIPAddressPage(LeftPlayerBasedFeaturePage):
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_ban_ip_address_pages:
+        if self.is_websocket and self in _ws_ban_ip_address_pages:
             _ws_ban_ip_address_pages.remove(self)
 
 
-class _BaseLiftBanPage(BaseFeaturePage):
+class _BaseBanPage(BaseFeaturePage):
     abstract = True
     page_abstract = True
     feature_page_abstract = True
@@ -861,7 +921,7 @@ class _BaseLiftBanPage(BaseFeaturePage):
         })
 
 
-class _LiftBanPage(_BaseLiftBanPage):
+class _LiftBanPage(_BaseBanPage):
     abstract = True
     page_abstract = True
     feature_page_abstract = True
@@ -909,16 +969,16 @@ class _LiftSteamIDBanPage(_LiftBanPage):
     page_id = "lift_steamid"
     feature = lift_steamid_ban_motd_feature
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_lift_steamid_pages.append(self)
 
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_lift_steamid_pages:
+        if self.is_websocket and self in _ws_lift_steamid_pages:
             _ws_lift_steamid_pages.remove(self)
 
 
@@ -928,17 +988,100 @@ class _LiftIPAddressBanPage(_LiftBanPage):
     page_id = "lift_ip_address"
     feature = lift_ip_address_ban_motd_feature
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_lift_ip_address_pages.append(self)
 
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_lift_ip_address_pages:
+        if self.is_websocket and self in _ws_lift_ip_address_pages:
             _ws_lift_ip_address_pages.remove(self)
+
+
+class _ReviewBanPage(_BaseBanPage):
+    abstract = True
+    page_abstract = True
+    feature_page_abstract = True
+
+    def on_page_data_received(self, data):
+        client = clients[self.index]
+
+        if data['action'] == "execute":
+            ban_id = data['banId']
+            reason = data['reason']
+            duration = data['duration']
+
+            banned_player_info = self.feature.get_ban_by_id(client, ban_id)
+            if banned_player_info is None:
+                # Might just as well log the ban id and the client, looks like
+                # this client has tried to lift somebody else's ban
+                return
+
+            client.sync_execution(self.feature.execute, (
+                client, banned_player_info.id, reason, duration,
+                banned_player_info.name))
+
+            self.send_data({
+                'feature-executed': "scheduled"
+            })
+            return
+
+        if data['action'] == "get-bans":
+            ban_data = []
+
+            for uniqueid, banned_player_info in self.feature.get_bans(
+                    client):
+                ban_data.append({
+                    'uniqueid': uniqueid,
+                    'banId': banned_player_info.id,
+                    'name': banned_player_info.name,
+                })
+
+            self.send_data({
+                'action': "bans",
+                'bans': ban_data,
+            })
+
+
+class _ReviewSteamIDBanPage(_ReviewBanPage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "review_steamid"
+    feature = review_steamid_ban_motd_feature
+
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
+
+        if self.is_websocket:
+            _ws_review_steamid_ban_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.is_websocket and self in _ws_review_steamid_ban_pages:
+            _ws_review_steamid_ban_pages.remove(self)
+
+
+class _ReviewIPAddressBanPage(_ReviewBanPage):
+    admin_plugin_id = "admin_kick_ban"
+    admin_plugin_type = "included"
+    page_id = "review_ip_address"
+    feature = review_ip_address_ban_motd_feature
+
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
+
+        if self.is_websocket:
+            _ws_review_ip_address_ban_pages.append(self)
+
+    def on_error(self, error):
+        super().on_error(error)
+
+        if self.is_websocket and self in _ws_review_ip_address_ban_pages:
+            _ws_review_ip_address_ban_pages.remove(self)
 
 
 # =============================================================================
@@ -969,51 +1112,50 @@ review_steamid_ban_popup_feature.ban_popup.parent_menu = (
 review_ip_address_ban_popup_feature.ban_popup.parent_menu = (
     menu_section_ip_address.popup)
 
-kick_menu_command = menu_section.add_entry(_KickMenuCommand(
+menu_section.add_entry(_KickMenuCommand(
     kick_feature,
     menu_section,
     plugin_strings['popup_title kick']
 ))
-ban_steamid_menu_command = menu_section_steamid.add_entry(
-    _BanSteamIDMenuCommand(
-        ban_steamid_feature,
-        menu_section_steamid,
-        plugin_strings['popup_title ban_steamid']))
-ban_ip_address_menu_command = menu_section_ip_address.add_entry(
-    _BanIPAddressMenuCommand(
-        ban_ip_address_feature,
-        menu_section_ip_address,
-        plugin_strings['popup_title ban_ip_address']))
-review_steamid_ban_menu_command = menu_section_steamid.add_entry(
-    AdminCommand(
-        review_steamid_ban_popup_feature,
-        menu_section_steamid,
-        plugin_strings['popup_title review_steamid']))
-review_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
-    AdminCommand(
-        review_ip_address_ban_popup_feature,
-        menu_section_ip_address,
-        plugin_strings['popup_title review_ip_address']))
-lift_steamid_ban_menu_command = menu_section_steamid.add_entry(
-    AdminCommand(
-        lift_steamid_ban_popup_feature,
-        menu_section_steamid,
-        plugin_strings['popup_title lift_steamid']))
-lift_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
-    AdminCommand(
-        lift_ip_address_ban_popup_feature,
-        menu_section_ip_address,
-        plugin_strings['popup_title lift_ip_address']))
-lift_reviewed_steamid_ban_menu_command = menu_section_steamid.add_entry(
-    AdminCommand(
-        lift_reviewed_steamid_ban_popup_feature,
-        menu_section_steamid,
-        plugin_strings['popup_title lift_reviewed_steamid']))
-lift_reviewed_ip_address_ban_menu_command = menu_section_ip_address.add_entry(
-    AdminCommand(
-        lift_reviewed_ip_address_ban_popup_feature,
-        menu_section_ip_address,
-        plugin_strings['popup_title lift_reviewed_ip_address']))
+menu_section_steamid.add_entry(_BanSteamIDMenuCommand(
+    ban_steamid_feature,
+    menu_section_steamid,
+    plugin_strings['popup_title ban_steamid']))
+
+menu_section_ip_address.add_entry(_BanIPAddressMenuCommand(
+    ban_ip_address_feature,
+    menu_section_ip_address,
+    plugin_strings['popup_title ban_ip_address']))
+
+menu_section_steamid.add_entry(AdminCommand(
+    review_steamid_ban_popup_feature,
+    menu_section_steamid,
+    plugin_strings['popup_title review_steamid']))
+
+menu_section_ip_address.add_entry(AdminCommand(
+    review_ip_address_ban_popup_feature,
+    menu_section_ip_address,
+    plugin_strings['popup_title review_ip_address']))
+
+menu_section_steamid.add_entry(AdminCommand(
+    lift_steamid_ban_popup_feature,
+    menu_section_steamid,
+    plugin_strings['popup_title lift_steamid']))
+
+menu_section_ip_address.add_entry(AdminCommand(
+    lift_ip_address_ban_popup_feature,
+    menu_section_ip_address,
+    plugin_strings['popup_title lift_ip_address']))
+
+menu_section_steamid.add_entry(AdminCommand(
+    lift_reviewed_steamid_ban_popup_feature,
+    menu_section_steamid,
+    plugin_strings['popup_title lift_reviewed_steamid']))
+
+menu_section_ip_address.add_entry(AdminCommand(
+    lift_reviewed_ip_address_ban_popup_feature,
+    menu_section_ip_address,
+    plugin_strings['popup_title lift_reviewed_ip_address']))
 
 
 # =============================================================================
@@ -1029,27 +1171,32 @@ motd_section_ip_address = motd_section.add_entry(MOTDSection(
     motd_section, plugin_strings['section_title ip_address_bans'],
     'ip_address'))
 
-motd_kick_page_entry = motd_section.add_entry(MOTDPageEntry(
+motd_section.add_entry(MOTDPageEntry(
     motd_section, _KickPage, plugin_strings['popup_title kick'], 'kick'))
 
-motd_ban_steamid_page_entry = motd_section_steamid.add_entry(MOTDPageEntry(
+motd_section_steamid.add_entry(MOTDPageEntry(
     motd_section_steamid, _BanSteamIDPage,
     plugin_strings['popup_title ban_steamid'], 'ban_steamid'))
 
-motd_ban_ip_address_page_entry = motd_section_ip_address.add_entry(
-    MOTDPageEntry(
-        motd_section_ip_address, _BanIPAddressPage,
-        plugin_strings['popup_title ban_ip_address'], 'ban_ip_address'))
+motd_section_ip_address.add_entry(MOTDPageEntry(
+    motd_section_ip_address, _BanIPAddressPage,
+    plugin_strings['popup_title ban_ip_address'], 'ban_ip_address'))
 
-motd_lift_steamid_ban_page_entry = motd_section_steamid.add_entry(
-    MOTDPageEntry(
-        motd_section_steamid, _LiftSteamIDBanPage,
-        plugin_strings['popup_title lift_steamid'], 'lift_steamid'))
+motd_section_steamid.add_entry(MOTDPageEntry(
+    motd_section_steamid, _LiftSteamIDBanPage,
+    plugin_strings['popup_title lift_steamid'], 'lift_steamid'))
 
-motd_lift_ip_address_ban_page_entry = motd_section_ip_address.add_entry(
-    MOTDPageEntry(
-        motd_section_ip_address, _LiftIPAddressBanPage,
-        plugin_strings['popup_title lift_ip_address'], 'lift_ip_address'))
+motd_section_ip_address.add_entry(MOTDPageEntry(
+    motd_section_ip_address, _LiftIPAddressBanPage,
+    plugin_strings['popup_title lift_ip_address'], 'lift_ip_address'))
+
+motd_section_steamid.add_entry(MOTDPageEntry(
+    motd_section_steamid, _ReviewSteamIDBanPage,
+    plugin_strings['popup_title review_steamid'], 'review_steamid'))
+
+motd_section_ip_address.add_entry(MOTDPageEntry(
+    motd_section_ip_address, _ReviewIPAddressBanPage,
+    plugin_strings['popup_title review_ip_address'], 'review_ip_address'))
 
 
 # =============================================================================

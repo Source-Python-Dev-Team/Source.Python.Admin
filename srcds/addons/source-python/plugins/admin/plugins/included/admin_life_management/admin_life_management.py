@@ -66,16 +66,16 @@ class _SlayPage(PlayerBasedFeaturePage):
     _base_filter = 'all'
     _ws_base_filter = 'alive'
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_slay_pages.append(self)
 
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_slay_pages:
+        if self.is_websocket and self in _ws_slay_pages:
             _ws_slay_pages.remove(self)
 
 
@@ -88,16 +88,16 @@ class _ResurrectPage(PlayerBasedFeaturePage):
     _base_filter = 'all'
     _ws_base_filter = 'dead'
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_resurrect_pages.append(self)
 
     def on_error(self, error):
         super().on_error(error)
 
-        if self.ws_instance and self in _ws_resurrect_pages:
+        if self.is_websocket and self in _ws_resurrect_pages:
             _ws_resurrect_pages.remove(self)
 
 

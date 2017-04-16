@@ -270,7 +270,7 @@ class BasePlayerBasedFeaturePage(BaseFeaturePage):
             return
 
         if data['action'] == "get-players":
-            if self.ws_instance:
+            if self.is_websocket:
                 for player in self._iter():
                     if not self.filter(player):
                         continue
@@ -318,15 +318,15 @@ class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
     _base_filter = 'all'
     _ws_base_filter = 'all'
 
-    def __init__(self, index, ws_instance):
-        super().__init__(index, ws_instance)
+    def __init__(self, index, page_request_type):
+        super().__init__(index, page_request_type)
 
-        if ws_instance:
+        if self.is_websocket:
             _ws_player_based_pages.append(self)
 
     @property
     def base_filter(self):
-        return self._ws_base_filter if self.ws_instance else self._base_filter
+        return self._ws_base_filter if self.is_websocket else self._base_filter
 
     def _get_player_id(self, player):
         return player.userid
@@ -350,7 +350,7 @@ class PlayerBasedFeaturePage(BasePlayerBasedFeaturePage):
         return player.name
 
     def on_error(self, error):
-        if self.ws_instance and self in _ws_player_based_pages:
+        if self.is_websocket and self in _ws_player_based_pages:
             _ws_player_based_pages.remove(self)
 
 
