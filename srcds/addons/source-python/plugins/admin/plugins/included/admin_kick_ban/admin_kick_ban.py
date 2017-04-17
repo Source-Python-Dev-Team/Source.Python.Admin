@@ -19,13 +19,13 @@ from .bans.ip_address import (
     BanIPAddressMenuCommand, BanIPAddressPage,
     lift_any_ip_address_ban_popup_feature, lift_ip_address_ban_popup_feature,
     LiftIPAddressBanPage, review_ip_address_ban_popup_feature,
-    ReviewIPAddressBanPage)
+    ReviewIPAddressBanPage, search_bad_ip_address_bans_popup_feature)
 from .bans.steamid import (
     ban_steamid_feature, banned_steamid_manager,
     BanSteamIDMenuCommand, BanSteamIDPage,
     lift_any_steamid_ban_popup_feature, lift_steamid_ban_popup_feature,
     LiftSteamIDBanPage, review_steamid_ban_popup_feature,
-    ReviewSteamIDBanPage)
+    ReviewSteamIDBanPage, search_bad_steamid_bans_popup_feature)
 from .strings import plugin_strings
 
 
@@ -134,6 +134,16 @@ menu_section_ip_address.add_entry(AdminCommand(
     lift_any_ip_address_ban_popup_feature,
     menu_section_ip_address,
     plugin_strings['popup_title lift_reviewed_ip_address']))
+
+menu_section_steamid.add_entry(AdminCommand(
+    search_bad_steamid_bans_popup_feature,
+    menu_section_steamid,
+    plugin_strings['popup_title search_bad_bans']))
+
+menu_section_ip_address.add_entry(AdminCommand(
+    search_bad_ip_address_bans_popup_feature,
+    menu_section_ip_address,
+    plugin_strings['popup_title search_bad_bans']))
 
 
 # =============================================================================

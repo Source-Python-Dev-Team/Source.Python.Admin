@@ -13,6 +13,9 @@ from players.helpers import get_client_language
 from steam import SteamID
 from translations.manager import language_manager
 
+# Site-Package
+from sqlalchemy.sql.expression import and_
+
 # Source.Python Admin
 from admin.core.clients import clients
 from admin.core.features import BaseFeature, Feature
@@ -91,9 +94,10 @@ stock_ban_reasons = load_stock_ban_reasons()
 
 
 class _BannedPlayerInfo:
-    def __init__(self, id_, name, banned_by, reviewed, expires_at, reason,
-                 notes):
+    def __init__(self, uniqueid, id_, name, banned_by, reviewed, expires_at,
+                 reason, notes):
 
+        self.uniqueid = uniqueid
         self.id = id_
         self.name = name
         self.banned_by = banned_by
@@ -130,9 +134,9 @@ class BannedUniqueIDManager(dict):
                 continue
 
             self[banned_user.uniqueid] = _BannedPlayerInfo(
-                banned_user.id, banned_user.name, banned_user.banned_by,
-                banned_user.reviewed, banned_user.expires_at,
-                banned_user.reason, banned_user.notes
+                banned_user.uniqueid, banned_user.id, banned_user.name,
+                banned_user.banned_by, banned_user.reviewed,
+                banned_user.expires_at, banned_user.reason, banned_user.notes
             )
 
         session.close()
@@ -164,19 +168,72 @@ class BannedUniqueIDManager(dict):
         session.commit()
 
         self[uniqueid] = _BannedPlayerInfo(
-            banned_user.id, name, banned_by, False,
+            uniqueid, banned_user.id, name, banned_by, False,
             banned_user.expires_at, "", "")
 
         session.close()
 
-    def get_bans(self, banned_by=None, reviewed=None):
+    def remove_ban_from_database(self, ban_id):
+        session = Session()
+
+        banned_user = session.query(self.model).filter_by(id=ban_id).first()
+        if banned_user is not None:
+            session.delete(banned_user)
+            session.commit()
+
+        session.close()
+
+    def get_all_bans(self, uniqueid=None, banned_by=None, reviewed=None,
+                     expired=None, unbanned=None):
+
+        result = []
+        session = Session()
+
+        query = session.query(self.model)
+
+        if uniqueid is not None:
+            uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
+            query = query.filter(self.model.uniqueid == uniqueid)
+
+        if banned_by is not None:
+            banned_by = self._convert_steamid_to_db_format(banned_by)
+            query = query.filter_by(banned_by=banned_by)
+
+        if reviewed is not None:
+            query = query.filter_by(reviewed=reviewed)
+
+        if expired is not None:
+            current_time = int(time())
+            if expired:
+                query = query.filter(and_(
+                    self.model.expires_at < current_time,
+                    self.model.expires_at > -1
+                ))
+            else:
+                query = query.filter(self.model.expires_at >= current_time)
+
+        if unbanned is not None:
+            query = query.filter_by(is_unbanned=unbanned)
+
+        for banned_user in query.all():
+            result.append(_BannedPlayerInfo(
+                banned_user.uniqueid, banned_user.id, banned_user.name,
+                banned_user.banned_by, banned_user.reviewed,
+                banned_user.expires_at, banned_user.reason, banned_user.notes
+            ))
+
+        session.close()
+
+        return result
+
+    def get_active_bans(self, banned_by=None, reviewed=None):
         if banned_by is not None:
             banned_by = self._convert_steamid_to_db_format(banned_by)
 
         current_time = time()
 
         result = []
-        for uniqueid, banned_player_info in self.items():
+        for banned_player_info in self.values():
             if (
                     banned_by is not None and
                     banned_player_info.banned_by != banned_by):
@@ -192,7 +249,7 @@ class BannedUniqueIDManager(dict):
             if banned_player_info.expires_at < current_time:
                 continue
 
-            result.append((uniqueid, banned_player_info))
+            result.append(banned_player_info)
 
         return result
 
@@ -250,14 +307,11 @@ class LiftBanMOTDFeature(BaseFeature):
     ws_lift_ban_pages = None
 
     def get_bans(self, client):
-        bans = self.banned_uniqueid_manager.get_bans(
+        yield from self.banned_uniqueid_manager.get_active_bans(
             banned_by=client.steamid, reviewed=False)
 
-        for uniqueid, banned_player_info in bans:
-            yield uniqueid, banned_player_info
-
     def get_ban_by_id(self, client, ban_id):
-        for uniqueid, banned_player_info in self.get_bans(client):
+        for banned_player_info in self.get_bans(client):
             if banned_player_info.id == ban_id:
                 return banned_player_info
         return None
@@ -290,14 +344,14 @@ class LiftBanPopupFeature(Feature):
             client = clients[index]
             popup.clear()
 
-            bans = self.banned_uniqueid_manager.get_bans(
+            bans = self.banned_uniqueid_manager.get_active_bans(
                 banned_by=client.steamid, reviewed=False)
 
-            for uniqueid, banned_player_info in bans:
+            for banned_player_info in bans:
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
-                        id=uniqueid, name=format_player_name(
-                            banned_player_info.name)),
+                        id=banned_player_info.uniqueid,
+                        name=format_player_name(banned_player_info.name)),
                     value=banned_player_info
                 ))
 
@@ -325,8 +379,8 @@ class LiftAnyBanPopupFeature(Feature):
     banned_uniqueid_manager = None
 
     def __init__(self):
-        # (_BannedPlayerInfo instance, IP/SteamID, whether confirmed or not)
-        self._selected_ban = (None, "", False)
+        # (_BannedPlayerInfo instance, whether confirmed or not)
+        self._selected_ban = (None, False)
 
         self.ban_popup = PagedMenu(title=self.popup_title)
         self.confirm_popup = SimpleMenu()
@@ -336,14 +390,14 @@ class LiftAnyBanPopupFeature(Feature):
             popup.clear()
 
             # Get all bans
-            bans = self.banned_uniqueid_manager.get_bans()
+            bans = self.banned_uniqueid_manager.get_active_bans()
 
-            for uniqueid, banned_player_info in bans:
+            for banned_player_info in bans:
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
-                        id=uniqueid, name=format_player_name(
-                            banned_player_info.name)),
-                    value=(banned_player_info, uniqueid, False)
+                        id=banned_player_info.uniqueid,
+                        name=format_player_name(banned_player_info.name)),
+                    value=(banned_player_info, False)
                 ))
 
         @self.ban_popup.register_select_callback
@@ -356,7 +410,9 @@ class LiftAnyBanPopupFeature(Feature):
             popup.clear()
 
             popup.append(Text(plugin_strings['ban_record'].tokenized(
-                name=self._selected_ban[0].name, id=self._selected_ban[1])))
+                name=self._selected_ban[0].name,
+                id=self._selected_ban[0].uniqueid
+            )))
 
             popup.append(Text(
                 plugin_strings['ban_record admin_steamid'].tokenized(
@@ -369,20 +425,23 @@ class LiftAnyBanPopupFeature(Feature):
                 popup.append(Text(plugin_strings['ban_record notes'].tokenized(
                     notes=self._selected_ban[0].notes)))
 
+            popup.append(Text(
+                plugin_strings['lift_reviewed_ban_confirmation']))
+
             popup.append(SimpleOption(
                 choice_index=1,
                 text=plugin_strings['lift_reviewed_ban_confirmation no'],
-                value=(self._selected_ban[0], self._selected_ban[1], False),
+                value=(self._selected_ban[0], False),
             ))
             popup.append(SimpleOption(
                 choice_index=2,
                 text=plugin_strings['lift_reviewed_ban_confirmation yes'],
-                value=(self._selected_ban[0], self._selected_ban[1], True),
+                value=(self._selected_ban[0], True),
             ))
 
         @self.confirm_popup.register_select_callback
         def select_callback(popup, index, option):
-            if not option.value[2]:
+            if not option.value[1]:
                 return
 
             client = clients[index]
@@ -407,14 +466,11 @@ class ReviewBanMOTDFeature(BaseFeature):
     ws_review_ban_pages = None
 
     def get_bans(self, client):
-        bans = self.banned_uniqueid_manager.get_bans(
+        yield from self.banned_uniqueid_manager.get_active_bans(
             banned_by=client.steamid, reviewed=False)
 
-        for uniqueid, banned_player_info in bans:
-            yield uniqueid, banned_player_info
-
     def get_ban_by_id(self, client, ban_id):
-        for uniqueid, banned_player_info in self.get_bans(client):
+        for banned_player_info in self.get_bans(client):
             if banned_player_info.id == ban_id:
                 return banned_player_info
         return None
@@ -458,14 +514,14 @@ class ReviewBanPopupFeature(Feature):
             client = clients[index]
             popup.clear()
 
-            bans = self.banned_uniqueid_manager.get_bans(
+            bans = self.banned_uniqueid_manager.get_active_bans(
                 banned_by=client.steamid, reviewed=False)
 
-            for uniqueid, banned_player_info in bans:
+            for banned_player_info in bans:
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
-                        id=uniqueid, name=format_player_name(
-                            banned_player_info.name)),
+                        id=banned_player_info.uniqueid,
+                        name=format_player_name(banned_player_info.name)),
                     value=(banned_player_info, "", -1)
                 ))
 
@@ -534,6 +590,91 @@ class ReviewBanPopupFeature(Feature):
         client.send_popup(self.ban_popup)
 
 
+class SearchBadBansPopupFeature(Feature):
+    feature_abstract = True
+    popup_title = None
+    banned_uniqueid_manager = None
+
+    def __init__(self):
+        # (_BannedPlayerInfo instance, whether to remove or not)
+        self._selected_ban = None
+
+        self.ban_popup = PagedMenu(title=self.popup_title)
+        self.remove_popup = SimpleMenu()
+
+        @self.ban_popup.register_build_callback
+        def build_callback(popup, index):
+            popup.clear()
+
+            # Get expired, unreviewed, unlifted bans
+            bans = self.banned_uniqueid_manager.get_all_bans(
+                unbanned=False, reviewed=False, expired=True)
+
+            for banned_player_info in bans:
+                popup.append(PagedOption(
+                    text=plugin_strings['ban_record'].tokenized(
+                        id=banned_player_info.uniqueid,
+                        name=format_player_name(banned_player_info.name)),
+                    value=(banned_player_info, False)
+                ))
+
+        @self.ban_popup.register_select_callback
+        def select_callback(popup, index, option):
+            self._selected_ban = option.value
+            clients[index].send_popup(self.remove_popup)
+
+        @self.remove_popup.register_build_callback
+        def build_callback(popup, index):
+            popup.clear()
+
+            popup.append(Text(plugin_strings['ban_record'].tokenized(
+                name=self._selected_ban[0].name,
+                id=self._selected_ban[0].uniqueid
+            )))
+
+            popup.append(Text(
+                plugin_strings['ban_record admin_steamid'].tokenized(
+                    admin_steamid=self._selected_ban[0].banned_by)))
+
+            if self._selected_ban[0].notes:
+                popup.append(Text(plugin_strings['ban_record notes'].tokenized(
+                    notes=self._selected_ban[0].notes)))
+
+            popup.append(Text(
+                plugin_strings['remove_bad_ban_confirmation']))
+
+            popup.append(SimpleOption(
+                choice_index=1,
+                text=plugin_strings['remove_bad_ban_confirmation no'],
+                value=(self._selected_ban[0], False),
+            ))
+            popup.append(SimpleOption(
+                choice_index=2,
+                text=plugin_strings['remove_bad_ban_confirmation yes'],
+                value=(self._selected_ban[0], True),
+            ))
+
+        @self.remove_popup.register_select_callback
+        def select_callback(popup, index, option):
+            if not option.value[1]:
+                return
+
+            client = clients[index]
+
+            GameThread(
+                target=self.banned_uniqueid_manager.remove_ban_from_database,
+                args=(option.value[0].id, )
+            ).start()
+
+            log_admin_action(plugin_strings['message ban_removed'].tokenized(
+                admin_name=client.name,
+                ban_id=option.value[0].id
+            ))
+
+    def execute(self, client):
+        client.send_popup(self.ban_popup)
+
+
 class _BaseBanPage(BaseFeaturePage):
     abstract = True
     page_abstract = True
@@ -575,9 +716,9 @@ class LiftBanPage(_BaseBanPage):
         if data['action'] == "get-bans":
             ban_data = []
 
-            for uniqueid, banned_player_info in self.feature.get_bans(client):
+            for banned_player_info in self.feature.get_bans(client):
                 ban_data.append({
-                    'uniqueid': str(uniqueid),
+                    'uniqueid': str(banned_player_info.uniqueid),
                     'banId': banned_player_info.id,
                     'name': banned_player_info.name,
                 })
@@ -643,9 +784,9 @@ class ReviewBanPage(_BaseBanPage):
                 })
 
             ban_data = []
-            for uniqueid, banned_player_info in self.feature.get_bans(client):
+            for banned_player_info in self.feature.get_bans(client):
                 ban_data.append({
-                    'uniqueid': str(uniqueid),
+                    'uniqueid': str(banned_player_info.uniqueid),
                     'banId': banned_player_info.id,
                     'name': banned_player_info.name,
                 })

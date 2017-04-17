@@ -27,7 +27,7 @@ from ..strings import plugin_strings
 from .base import (
     BannedUniqueIDManager, LiftBanMOTDFeature, LiftBanPopupFeature,
     LiftAnyBanPopupFeature, ReviewBanMOTDFeature, ReviewBanPopupFeature,
-    LiftBanPage, ReviewBanPage)
+    LiftBanPage, ReviewBanPage, SearchBadBansPopupFeature)
 
 
 # =============================================================================
@@ -154,6 +154,15 @@ class _ReviewSteamIDBanPopupFeature(ReviewBanPopupFeature):
 
 # The singleton object of the _ReviewSteamIDBanPopupFeature class.
 review_steamid_ban_popup_feature = _ReviewSteamIDBanPopupFeature()
+
+
+class _SearchBadSteamIDBansPopupFeature(SearchBadBansPopupFeature):
+    flag = "admin.admin_kick_ban.search_bad_steamid_bans"
+    popup_title = plugin_strings['popup_title search_bad_bans']
+    banned_uniqueid_manager = banned_steamid_manager
+
+# The singleton object of the _SearchBadSteamIDBansPopupFeature class.
+search_bad_steamid_bans_popup_feature = _SearchBadSteamIDBansPopupFeature()
 
 
 class BanSteamIDMenuCommand(LeftPlayerBasedAdminCommand):

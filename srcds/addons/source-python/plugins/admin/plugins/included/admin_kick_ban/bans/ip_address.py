@@ -22,7 +22,7 @@ from ..strings import plugin_strings
 from .base import (
     BannedUniqueIDManager, LiftBanMOTDFeature, LiftBanPopupFeature,
     LiftAnyBanPopupFeature, ReviewBanMOTDFeature, ReviewBanPopupFeature,
-    LiftBanPage, ReviewBanPage)
+    LiftBanPage, ReviewBanPage, SearchBadBansPopupFeature)
 
 
 # =============================================================================
@@ -133,6 +133,16 @@ class _ReviewIPAddressBanPopupFeature(ReviewBanPopupFeature):
 
 # The singleton object of the _ReviewSteamIDBanPopupFeature class.
 review_ip_address_ban_popup_feature = _ReviewIPAddressBanPopupFeature()
+
+
+class _SearchBadIPAddressBansPopupFeature(SearchBadBansPopupFeature):
+    flag = "admin.admin_kick_ban.search_bad_ip_address_bans"
+    popup_title = plugin_strings['popup_title search_bad_bans']
+    banned_uniqueid_manager = banned_ip_address_manager
+
+# The singleton object of the _SearchBadIPAddressBansPopupFeature class.
+search_bad_ip_address_bans_popup_feature = (
+    _SearchBadIPAddressBansPopupFeature())
 
 
 class BanIPAddressMenuCommand(LeftPlayerBasedAdminCommand):
