@@ -206,6 +206,7 @@ class BannedUniqueIDManager(dict):
             return
 
         banned_user.review(reason, duration)
+        expires_at = banned_user.expires_at
 
         session.commit()
         session.close()
@@ -215,7 +216,7 @@ class BannedUniqueIDManager(dict):
                 continue
 
             banned_player_info.reviewed = True
-            banned_player_info.expires_at = banned_user.expires_at
+            banned_player_info.expires_at = expires_at
             banned_player_info.reason = reason
             break
 
