@@ -1,0 +1,67 @@
+{% extends "admin/base.html" %}
+
+{% block title %}Access Restriction - Review IP Address Ban{% endblock %}
+
+{% block head %}
+    <script type="application/javascript" src="/static/admin/included/admin_kick_ban/js/review_ban_page.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/admin/included/admin_kick_ban/css/review_ban_page.css" />
+    <script type="application/javascript">
+		var plugin = new PLUGIN();
+		document.addEventListener('AppInit', function (e) {
+		    plugin.init(
+		        document.getElementById('admin-ban-table'),
+		        document.getElementById('admin-review-ban-wrap'),
+		        document.getElementById('admin-review-ban'),
+		        document.getElementById('ban-id'),
+		        document.getElementById('player-name'),
+		        document.getElementById('player-uniqueid'),
+		        document.getElementById('reason-select'),
+		        document.getElementById('reason-textarea'),
+		        document.getElementById('duration-select'),
+		        document.getElementById('review-button')
+		    );
+        });
+    </script>
+{% endblock %}
+
+{% block main %}
+    <h1>Click on the ban entries to review them</h1>
+    <div id="admin-ban-table"></div>
+    <div id="admin-review-ban-wrap">
+        <div id="admin-review-ban">
+            <h2>Review Ban</h2>
+            <h3>Ban Info</h3>
+            <div class="review-inner">
+                <table>
+                    <tr>
+                        <td>Ban ID: </td><td class="review-ban-id" id="ban-id"></td>
+                    </tr>
+                    <tr>
+                        <td>Player Name: </td><td class="review-player-name" id="player-name"></td>
+                    </tr>
+                    <tr>
+                        <td>IP Address: </td><td class="review-player-uniqueid" id="player-uniqueid"></td>
+                    </tr>
+                </table>
+            </div>
+            <h3>Choose ban reason</h3>
+            <div class="review-inner">
+                <table class="reason-table">
+                    <tr>
+                        <th>Either one of the provided below...</th>
+                        <th>... or enter your own!</th>
+                    </tr>
+                    <tr>
+                        <td><select id="reason-select"></select></td>
+                        <td><textarea maxlength="255" rows="2" id="reason-textarea"></textarea></td>
+                    </tr>
+                </table>
+            </div>
+            <h3>Choose ban duration</h3>
+            <div class="review-inner">
+                <select id="duration-select"></select>
+            </div>
+            <input type="button" id="review-button" value="Review">
+        </div>
+    </div>
+{% endblock %}

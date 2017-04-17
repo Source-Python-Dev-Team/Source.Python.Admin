@@ -252,7 +252,7 @@ class _BannedUniqueIDManager(dict):
                 continue
 
             banned_player_info.reviewed = True
-            banned_player_info.expires_at = time() + duration
+            banned_player_info.expires_at = banned_user.expires_at
             banned_player_info.reason = reason
             break
 
@@ -642,7 +642,7 @@ class _ReviewBanMOTDFeature(BaseFeature):
                 return banned_player_info
         return None
 
-    def execute(self, client, ban_id, player_name, reason, duration):
+    def execute(self, client, ban_id, reason, duration, player_name):
         GameThread(
             target=self.banned_uniqueid_manager.review_ban,
             args=(ban_id, reason, duration)
@@ -952,7 +952,7 @@ class _LiftBanPage(_BaseBanPage):
 
             for uniqueid, banned_player_info in self.feature.get_bans(client):
                 ban_data.append({
-                    'uniqueid': uniqueid,
+                    'uniqueid': str(uniqueid),
                     'banId': banned_player_info.id,
                     'name': banned_player_info.name,
                 })
@@ -1029,20 +1029,45 @@ class _ReviewBanPage(_BaseBanPage):
             })
             return
 
-        if data['action'] == "get-bans":
-            ban_data = []
+        if data['action'] == "get-ban-data":
+            language = get_client_language(self.index)
 
-            for uniqueid, banned_player_info in self.feature.get_bans(
-                    client):
+            ban_durations = []
+            for stock_ban_duration in stock_ban_durations:
+                ban_durations.append({
+                    'value': stock_ban_duration,
+                    'title': format_ban_duration(
+                        stock_ban_duration).get_string(language),
+                })
+
+            ban_reasons = []
+            for stock_ban_reason in stock_ban_reasons.values():
+                duration_value = stock_ban_reason.duration
+                duration_title = (
+                    None if duration_value is None else
+                    format_ban_duration(duration_value).get_string(language))
+
+                ban_reasons.append({
+                    'hidden': stock_ban_reason.translation.get_string(
+                                language_manager.default),
+                    'title': stock_ban_reason.translation.get_string(language),
+                    'duration-value': duration_value,
+                    'duration-title': duration_title,
+                })
+
+            ban_data = []
+            for uniqueid, banned_player_info in self.feature.get_bans(client):
                 ban_data.append({
-                    'uniqueid': uniqueid,
+                    'uniqueid': str(uniqueid),
                     'banId': banned_player_info.id,
                     'name': banned_player_info.name,
                 })
 
             self.send_data({
-                'action': "bans",
+                'action': "ban-data",
                 'bans': ban_data,
+                'reasons': ban_reasons,
+                'durations': ban_durations,
             })
 
 
