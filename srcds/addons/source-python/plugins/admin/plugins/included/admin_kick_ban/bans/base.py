@@ -9,6 +9,7 @@ from time import time
 # Source.Python
 from listeners.tick import GameThread
 from menus import PagedMenu, PagedOption, SimpleMenu, SimpleOption, Text
+from players.dictionary import PlayerDictionary
 from players.helpers import get_client_language
 from steam import SteamID
 from translations.manager import language_manager
@@ -380,7 +381,7 @@ class LiftAnyBanPopupFeature(Feature):
 
     def __init__(self):
         # (_BannedPlayerInfo instance, whether confirmed or not)
-        self._selected_ban = (None, False)
+        self._selected_bans = PlayerDictionary(lambda index: (None, False))
 
         self.ban_popup = PagedMenu(title=self.popup_title)
         self.confirm_popup = SimpleMenu()
@@ -402,7 +403,7 @@ class LiftAnyBanPopupFeature(Feature):
 
         @self.ban_popup.register_select_callback
         def select_callback(popup, index, option):
-            self._selected_ban = option.value
+            self._selected_bans[index] = option.value
             clients[index].send_popup(self.confirm_popup)
 
         @self.confirm_popup.register_build_callback
@@ -410,20 +411,20 @@ class LiftAnyBanPopupFeature(Feature):
             popup.clear()
 
             popup.append(Text(plugin_strings['ban_record'].tokenized(
-                name=self._selected_ban[0].name,
-                id=self._selected_ban[0].uniqueid
+                name=self._selected_bans[index][0].name,
+                id=self._selected_bans[index][0].uniqueid
             )))
 
             popup.append(Text(
                 plugin_strings['ban_record admin_steamid'].tokenized(
-                    admin_steamid=self._selected_ban[0].banned_by)))
+                    admin_steamid=self._selected_bans[index][0].banned_by)))
 
             popup.append(Text(plugin_strings['ban_record reason'].tokenized(
-                reason=self._selected_ban[0].reason)))
+                reason=self._selected_bans[index][0].reason)))
 
-            if self._selected_ban[0].notes:
+            if self._selected_bans[index][0].notes:
                 popup.append(Text(plugin_strings['ban_record notes'].tokenized(
-                    notes=self._selected_ban[0].notes)))
+                    notes=self._selected_bans[index][0].notes)))
 
             popup.append(Text(
                 plugin_strings['lift_reviewed_ban_confirmation']))
@@ -431,12 +432,12 @@ class LiftAnyBanPopupFeature(Feature):
             popup.append(SimpleOption(
                 choice_index=1,
                 text=plugin_strings['lift_reviewed_ban_confirmation no'],
-                value=(self._selected_ban[0], False),
+                value=(self._selected_bans[index][0], False),
             ))
             popup.append(SimpleOption(
                 choice_index=2,
                 text=plugin_strings['lift_reviewed_ban_confirmation yes'],
-                value=(self._selected_ban[0], True),
+                value=(self._selected_bans[index][0], True),
             ))
 
         @self.confirm_popup.register_select_callback
@@ -498,15 +499,13 @@ class ReviewBanPopupFeature(Feature):
 
     def __init__(self):
         # (_BannedPlayerInfo instance, reason, duration)
-        self._selected_ban = (None, "", -1)
+        self._selected_bans = PlayerDictionary(lambda index: (None, "", -1))
 
         self.ban_popup = PagedMenu(title=self.popup_title)
         self.reason_popup = PagedMenu(title=self.popup_title,
                                       parent_menu=self.ban_popup)
 
-        # We do not allow returning back to reason popup from duration popup,
-        # because we won't have valid self._selected_ban to build a reason
-        # popup with. Hence we don't provide parent_menu here.
+        # TODO: Provide parent menu
         self.duration_popup = PagedMenu(title=self.popup_title)
 
         @self.ban_popup.register_build_callback
@@ -527,7 +526,7 @@ class ReviewBanPopupFeature(Feature):
 
         @self.ban_popup.register_select_callback
         def select_callback(popup, index, option):
-            self._selected_ban = option.value
+            self._selected_bans[index] = option.value
             clients[index].send_popup(self.reason_popup)
 
         @self.reason_popup.register_build_callback
@@ -538,7 +537,7 @@ class ReviewBanPopupFeature(Feature):
                 popup.append(PagedOption(
                     text=stock_ban_reason.translation,
                     value=(
-                        self._selected_ban[0],
+                        self._selected_bans[index][0],
                         stock_ban_reason.translation.get_string(
                             language_manager.default),
                         stock_ban_reason.duration,
@@ -547,26 +546,27 @@ class ReviewBanPopupFeature(Feature):
 
         @self.reason_popup.register_select_callback
         def select_callback(popup, index, option):
-            self._selected_ban = option.value
+            self._selected_bans[index] = option.value
             clients[index].send_popup(self.duration_popup)
 
         @self.duration_popup.register_build_callback
         def build_callback(popup, index):
             popup.clear()
 
-            if self._selected_ban[2] is not None:
+            if self._selected_bans[index][2] is not None:
                 popup.append(PagedOption(
                     text=plugin_strings['default_duration'].tokenized(
-                        default=format_ban_duration(self._selected_ban[2])),
-                    value=self._selected_ban
+                        default=format_ban_duration(
+                            self._selected_bans[index][2])),
+                    value=self._selected_bans[index]
                 ))
 
             for stock_ban_duration in stock_ban_durations:
                 popup.append(PagedOption(
                     text=format_ban_duration(stock_ban_duration),
                     value=(
-                        self._selected_ban[0],
-                        self._selected_ban[1],
+                        self._selected_bans[index][0],
+                        self._selected_bans[index][1],
                         stock_ban_duration,
                     )
                 ))
@@ -597,7 +597,7 @@ class SearchBadBansPopupFeature(Feature):
 
     def __init__(self):
         # (_BannedPlayerInfo instance, whether to remove or not)
-        self._selected_ban = None
+        self._selected_bans = PlayerDictionary(lambda index: (None, False))
 
         self.ban_popup = PagedMenu(title=self.popup_title)
         self.remove_popup = SimpleMenu()
@@ -620,7 +620,7 @@ class SearchBadBansPopupFeature(Feature):
 
         @self.ban_popup.register_select_callback
         def select_callback(popup, index, option):
-            self._selected_ban = option.value
+            self._selected_bans[index] = option.value
             clients[index].send_popup(self.remove_popup)
 
         @self.remove_popup.register_build_callback
@@ -628,17 +628,17 @@ class SearchBadBansPopupFeature(Feature):
             popup.clear()
 
             popup.append(Text(plugin_strings['ban_record'].tokenized(
-                name=self._selected_ban[0].name,
-                id=self._selected_ban[0].uniqueid
+                name=self._selected_bans[index][0].name,
+                id=self._selected_bans[index][0].uniqueid
             )))
 
             popup.append(Text(
                 plugin_strings['ban_record admin_steamid'].tokenized(
-                    admin_steamid=self._selected_ban[0].banned_by)))
+                    admin_steamid=self._selected_bans[index][0].banned_by)))
 
-            if self._selected_ban[0].notes:
+            if self._selected_bans[index][0].notes:
                 popup.append(Text(plugin_strings['ban_record notes'].tokenized(
-                    notes=self._selected_ban[0].notes)))
+                    notes=self._selected_bans[index][0].notes)))
 
             popup.append(Text(
                 plugin_strings['remove_bad_ban_confirmation']))
@@ -646,12 +646,12 @@ class SearchBadBansPopupFeature(Feature):
             popup.append(SimpleOption(
                 choice_index=1,
                 text=plugin_strings['remove_bad_ban_confirmation no'],
-                value=(self._selected_ban[0], False),
+                value=(self._selected_bans[index][0], False),
             ))
             popup.append(SimpleOption(
                 choice_index=2,
                 text=plugin_strings['remove_bad_ban_confirmation yes'],
-                value=(self._selected_ban[0], True),
+                value=(self._selected_bans[index][0], True),
             ))
 
         @self.remove_popup.register_select_callback

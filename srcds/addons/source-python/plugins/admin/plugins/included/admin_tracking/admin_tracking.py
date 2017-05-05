@@ -162,7 +162,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
     allow_execution_on_equal_priority = True
 
     def __init__(self):
-        self._selected_record = None
+        self._selected_records = PlayerDictionary(lambda index: None)
         self._records_to_show = None
 
         self.record_popup = PagedMenu(
@@ -199,7 +199,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
         def select_callback(popup, index, option):
             client = clients[index]
 
-            self._selected_record = option.value
+            self._selected_records[index] = option.value
             client.send_popup(self.track_popup)
 
         @self.track_popup.register_build_callback
@@ -207,28 +207,28 @@ class _TrackPopupFeature(PlayerBasedFeature):
             popup.title = plugin_strings['popup_title record_title'].tokenized(
                 seen_at=strftime(
                     "%d %b %Y %H:%M:%S", localtime(
-                        self._selected_record.seen_at)
+                        self._selected_records[index].seen_at)
                 ),
-                name=format_player_name(self._selected_record.name)
+                name=format_player_name(self._selected_records[index].name)
             )
 
             popup.clear()
             popup.append(Text(plugin_strings['popup_text name'].tokenized(
-                name=self._selected_record.name,  # Non-formatted name
+                name=self._selected_records[index].name,  # Non-formatted name
             )))
             popup.append(Text(plugin_strings['popup_text steamid'].tokenized(
-                steamid=self._selected_record.steamid,
+                steamid=self._selected_records[index].steamid,
             )))
             popup.append(Text(
                 plugin_strings['popup_text ip_address'].tokenized(
-                    ip_address=self._selected_record.ip_address,
+                    ip_address=self._selected_records[index].ip_address,
             )))
             popup.append(PagedOption(
                 text=plugin_strings['popup_title search_for_ip'].tokenized(
-                    ip_address=self._selected_record.ip_address),
+                    ip_address=self._selected_records[index].ip_address),
                 value=(
                     _TrackPopupOption.SEARCH_BY_IP,
-                    self._selected_record.ip_address
+                    self._selected_records[index].ip_address
                 )
             ))
 
