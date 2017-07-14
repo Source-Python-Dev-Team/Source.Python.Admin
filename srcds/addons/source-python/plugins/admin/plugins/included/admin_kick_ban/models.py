@@ -15,7 +15,7 @@ from admin.core.orm import Base
 # =============================================================================
 # >> MODEL CLASSES
 # =============================================================================
-class BannedUser(Base):
+class _BannedUser(Base):
     __abstract__ = True
 
     id = Column(Integer, primary_key=True)
@@ -58,7 +58,7 @@ class BannedUser(Base):
         self.unbanned_by = unbanned_by
 
 
-class BannedSteamID(BannedUser):
+class BannedSteamID(_BannedUser):
     __tablename__ = config['database']['prefix'] + "banned_steamid"
 
     steamid64 = Column(String(32))
@@ -72,7 +72,7 @@ class BannedSteamID(BannedUser):
     uniqueid = property(get_uniqueid, set_uniqueid)
 
 
-class BannedIPAddress(BannedUser):
+class BannedIPAddress(_BannedUser):
     __tablename__ = config['database']['prefix'] + "banned_ip_address"
 
     ip_address = Column(String(48))
