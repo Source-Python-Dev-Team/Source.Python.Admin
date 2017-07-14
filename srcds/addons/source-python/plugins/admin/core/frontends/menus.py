@@ -506,6 +506,10 @@ class BasePlayerBasedAdminCommand(AdminCommand):
         :param list player_ids: Unfiltered list of IDs.
         """
 
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
+
         client.active_popup = None
 
         for player in self._filter_player_ids(client, player_ids):
@@ -528,10 +532,6 @@ class BasePlayerBasedAdminCommand(AdminCommand):
         return format_player_name(player.name)
 
     def select(self, client):
-        if not self.is_visible(client) or not self.is_selectable(client):
-            client.tell(strings_common['unavailable'])
-            return
-
         client.send_popup(self.popup)
 
 
