@@ -194,7 +194,7 @@ class BannedUniqueIDManager(dict):
 
         if uniqueid is not None:
             uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
-            query = query.filter(self.model.uniqueid == uniqueid)
+            query = query.filter_by(uniqueid=uniqueid)
 
         if banned_by is not None:
             banned_by = self._convert_steamid_to_db_format(banned_by)
