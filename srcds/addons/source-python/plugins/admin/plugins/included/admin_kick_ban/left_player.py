@@ -203,7 +203,13 @@ def listener_on_client_active(index):
 
 @OnClientDisconnect
 def listener_on_client_disconnect(index):
-    left_player = LeftPlayer(index, disconnected=True)
+    try:
+        left_player = LeftPlayer(index, disconnected=True)
+    except ValueError:
+
+        # Sometimes (if the client disconnects before activation) we're
+        # unable to get data of the disconnected player
+        return
 
     for left_player_ in _left_players:
         if left_player_.steamid == left_player.steamid:
