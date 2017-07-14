@@ -19,3 +19,21 @@ engine = create_engine(config['database']['uri'].format(
 ))
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
+
+
+# =============================================================================
+# >> CLASSES
+# =============================================================================
+class SessionContext:
+    def __init__(self):
+        self.session = None
+
+    def __enter__(self):
+        self.session = Session()
+        return self.session
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if exc_type is not None:
+            self.session.rollback()
+        self.session.close()
+        self.session = None

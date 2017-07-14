@@ -22,7 +22,7 @@ from admin.core.clients import clients
 from admin.core.features import BaseFeature, Feature
 from admin.core.frontends.motd import BaseFeaturePage
 from admin.core.helpers import format_player_name, log_admin_action
-from admin.core.orm import Session
+from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 
 # Included Plugin
@@ -122,25 +122,22 @@ class BannedUniqueIDManager(dict):
     def refresh(self):
         self.clear()
 
-        session = Session()
+        with SessionContext() as session:
+            banned_users = session.query(self.model).all()
 
-        banned_users = session.query(self.model).all()
+            current_time = time()
+            for banned_user in banned_users:
+                if banned_user.is_unbanned:
+                    continue
 
-        current_time = time()
-        for banned_user in banned_users:
-            if banned_user.is_unbanned:
-                continue
+                if 0 <= banned_user.expires_at < current_time:
+                    continue
 
-            if 0 <= banned_user.expires_at < current_time:
-                continue
-
-            self[banned_user.uniqueid] = _BannedPlayerInfo(
-                banned_user.uniqueid, banned_user.id, banned_user.name,
-                banned_user.banned_by, banned_user.reviewed,
-                banned_user.expires_at, banned_user.reason, banned_user.notes
-            )
-
-        session.close()
+                self[banned_user.uniqueid] = _BannedPlayerInfo(
+                    banned_user.uniqueid, banned_user.id, banned_user.name,
+                    banned_user.banned_by, banned_user.reviewed,
+                    banned_user.expires_at, banned_user.reason,
+                    banned_user.notes)
 
     def is_banned(self, uniqueid):
         uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
@@ -161,72 +158,66 @@ class BannedUniqueIDManager(dict):
         uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
         banned_by = self._convert_steamid_to_db_format(banned_by)
 
-        session = Session()
+        with SessionContext() as session:
+            banned_user = self.model(uniqueid, name, banned_by, duration)
 
-        banned_user = self.model(uniqueid, name, banned_by, duration)
-
-        session.add(banned_user)
-        session.commit()
-
-        self[uniqueid] = _BannedPlayerInfo(
-            uniqueid, banned_user.id, name, banned_by, False,
-            banned_user.expires_at, "", "")
-
-        session.close()
-
-    def remove_ban_from_database(self, ban_id):
-        session = Session()
-
-        banned_user = session.query(self.model).filter_by(id=ban_id).first()
-        if banned_user is not None:
-            session.delete(banned_user)
+            session.add(banned_user)
             session.commit()
 
-        session.close()
+            self[uniqueid] = _BannedPlayerInfo(
+                uniqueid, banned_user.id, name, banned_by, False,
+                banned_user.expires_at, "", "")
+
+    def remove_ban_from_database(self, ban_id):
+        with SessionContext() as session:
+            banned_user = session.query(
+                self.model).filter_by(id=ban_id).first()
+
+            if banned_user is not None:
+                session.delete(banned_user)
+                session.commit()
 
     def get_all_bans(self, uniqueid=None, banned_by=None, reviewed=None,
                      expired=None, unbanned=None):
 
         result = []
-        session = Session()
 
-        query = session.query(self.model)
+        with SessionContext() as session:
+            query = session.query(self.model)
 
-        if uniqueid is not None:
-            uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
-            query = query.filter_by(uniqueid=uniqueid)
+            if uniqueid is not None:
+                uniqueid = self._convert_uniqueid_to_db_format(uniqueid)
+                query = query.filter_by(uniqueid=uniqueid)
 
-        if banned_by is not None:
-            banned_by = self._convert_steamid_to_db_format(banned_by)
-            query = query.filter_by(banned_by=banned_by)
+            if banned_by is not None:
+                banned_by = self._convert_steamid_to_db_format(banned_by)
+                query = query.filter_by(banned_by=banned_by)
 
-        if reviewed is not None:
-            query = query.filter_by(reviewed=reviewed)
+            if reviewed is not None:
+                query = query.filter_by(reviewed=reviewed)
 
-        if expired is not None:
-            current_time = int(time())
-            if expired:
-                query = query.filter(and_(
-                    self.model.expires_at < current_time,
-                    self.model.expires_at >= 0
+            if expired is not None:
+                current_time = int(time())
+                if expired:
+                    query = query.filter(and_(
+                        self.model.expires_at < current_time,
+                        self.model.expires_at >= 0
+                    ))
+                else:
+                    query = query.filter(or_(
+                        self.model.expires_at >= current_time,
+                        self.model.expires_at < 0
+                    ))
+
+            if unbanned is not None:
+                query = query.filter_by(is_unbanned=unbanned)
+
+            for banned_user in query.all():
+                result.append(_BannedPlayerInfo(
+                    banned_user.uniqueid, banned_user.id, banned_user.name,
+                    banned_user.banned_by, banned_user.reviewed,
+                    banned_user.expires_at, banned_user.reason, banned_user.notes
                 ))
-            else:
-                query = query.filter(or_(
-                    self.model.expires_at >= current_time,
-                    self.model.expires_at < 0
-                ))
-
-        if unbanned is not None:
-            query = query.filter_by(is_unbanned=unbanned)
-
-        for banned_user in query.all():
-            result.append(_BannedPlayerInfo(
-                banned_user.uniqueid, banned_user.id, banned_user.name,
-                banned_user.banned_by, banned_user.reviewed,
-                banned_user.expires_at, banned_user.reason, banned_user.notes
-            ))
-
-        session.close()
 
         return result
 
@@ -258,19 +249,17 @@ class BannedUniqueIDManager(dict):
         return result
 
     def review_ban(self, ban_id, reason, duration):
-        session = Session()
+        with SessionContext() as session:
+            banned_user = session.query(
+                self.model).filter_by(id=ban_id).first()
 
-        banned_user = session.query(self.model).filter_by(id=ban_id).first()
+            if banned_user is None:
+                return
 
-        if banned_user is None:
-            session.close()
-            return
+            banned_user.review(reason, duration)
+            expires_at = banned_user.expires_at
 
-        banned_user.review(reason, duration)
-        expires_at = banned_user.expires_at
-
-        session.commit()
-        session.close()
+            session.commit()
 
         for banned_player_info in self.values():
             if banned_player_info.id != ban_id:
@@ -284,18 +273,16 @@ class BannedUniqueIDManager(dict):
     def lift_ban(self, ban_id, unbanned_by):
         unbanned_by = self._convert_steamid_to_db_format(unbanned_by)
 
-        session = Session()
+        with SessionContext() as session:
+            banned_user = session.query(
+                self.model).filter_by(id=ban_id).first()
 
-        banned_user = session.query(self.model).filter_by(id=ban_id).first()
+            if banned_user is None:
+                return
 
-        if banned_user is None:
-            session.close()
-            return
+            banned_user.lift_ban(unbanned_by)
 
-        banned_user.lift_ban(unbanned_by)
-
-        session.commit()
-        session.close()
+            session.commit()
 
         for uniqueid, banned_player_info in self.items():
             if banned_player_info.id != ban_id:

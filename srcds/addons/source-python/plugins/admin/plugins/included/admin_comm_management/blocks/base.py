@@ -19,7 +19,7 @@ from admin.core.clients import clients
 from admin.core.features import BaseFeature
 from admin.core.frontends.menus import AdminCommand, PlayerBasedAdminCommand
 from admin.core.helpers import format_player_name
-from admin.core.orm import Session
+from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.strings import strings_common
 
@@ -89,24 +89,21 @@ class BlockedCommUserManager(dict):
     def refresh(self):
         self.clear()
 
-        session = Session()
+        with SessionContext() as session:
+            blocked_users = session.query(self.model).all()
 
-        blocked_users = session.query(self.model).all()
+            current_time = time()
+            for blocked_user in blocked_users:
+                if blocked_user.is_unblocked:
+                    continue
 
-        current_time = time()
-        for blocked_user in blocked_users:
-            if blocked_user.is_unblocked:
-                continue
+                if 0 <= blocked_user.expires_at < current_time:
+                    continue
 
-            if 0 <= blocked_user.expires_at < current_time:
-                continue
-
-            self[blocked_user.steamid64] = _BlockedCommUserInfo(
-                blocked_user.steamid64, blocked_user.id, blocked_user.name,
-                blocked_user.blocked_by, blocked_user.expires_at
-            )
-
-        session.close()
+                self[blocked_user.steamid64] = _BlockedCommUserInfo(
+                    blocked_user.steamid64, blocked_user.id, blocked_user.name,
+                    blocked_user.blocked_by, blocked_user.expires_at
+                )
 
         self._on_change()
 
@@ -129,18 +126,15 @@ class BlockedCommUserManager(dict):
         steamid = self._convert_steamid_to_db_format(steamid)
         blocked_by = self._convert_steamid_to_db_format(blocked_by)
 
-        session = Session()
+        with SessionContext() as session:
+            blocked_user = self.model(steamid, name, blocked_by, duration)
 
-        blocked_user = self.model(steamid, name, blocked_by, duration)
+            session.add(blocked_user)
+            session.commit()
 
-        session.add(blocked_user)
-        session.commit()
-
-        self[steamid] = _BlockedCommUserInfo(
-            steamid, blocked_user.id, name, blocked_by,
-            blocked_user.expires_at)
-
-        session.close()
+            self[steamid] = _BlockedCommUserInfo(
+                steamid, blocked_user.id, name, blocked_by,
+                blocked_user.expires_at)
 
         self._on_change()
 
@@ -148,41 +142,39 @@ class BlockedCommUserManager(dict):
             self, steamid=None, blocked_by=None, expired=None, unblocked=None):
 
         result = []
-        session = Session()
 
-        query = session.query(self.model)
+        with SessionContext() as session:
+            query = session.query(self.model)
 
-        if steamid is not None:
-            steamid = self._convert_steamid_to_db_format(steamid)
-            query = query.filter_by(steamid64=steamid)
+            if steamid is not None:
+                steamid = self._convert_steamid_to_db_format(steamid)
+                query = query.filter_by(steamid64=steamid)
 
-        if blocked_by is not None:
-            blocked_by = self._convert_steamid_to_db_format(blocked_by)
-            query = query.filter_by(blocked_by=blocked_by)
+            if blocked_by is not None:
+                blocked_by = self._convert_steamid_to_db_format(blocked_by)
+                query = query.filter_by(blocked_by=blocked_by)
 
-        if expired is not None:
-            current_time = int(time())
-            if expired:
-                query = query.filter(and_(
-                    self.model.expires_at < current_time,
-                    self.model.expires_at >= 0
+            if expired is not None:
+                current_time = int(time())
+                if expired:
+                    query = query.filter(and_(
+                        self.model.expires_at < current_time,
+                        self.model.expires_at >= 0
+                    ))
+                else:
+                    query = query.filter(or_(
+                        self.model.expires_at >= current_time,
+                        self.model.expires_at < 0
+                    ))
+
+            if unblocked is not None:
+                query = query.filter_by(is_unblocked=unblocked)
+
+            for blocked_user in query.all():
+                result.append(_BlockedCommUserInfo(
+                    blocked_user.steamid64, blocked_user.id, blocked_user.name,
+                    blocked_user.blocked_by, blocked_user.expires_at
                 ))
-            else:
-                query = query.filter(or_(
-                    self.model.expires_at >= current_time,
-                    self.model.expires_at < 0
-                ))
-
-        if unblocked is not None:
-            query = query.filter_by(is_unblocked=unblocked)
-
-        for blocked_user in query.all():
-            result.append(_BlockedCommUserInfo(
-                blocked_user.steamid64, blocked_user.id, blocked_user.name,
-                blocked_user.blocked_by, blocked_user.expires_at
-            ))
-
-        session.close()
 
         return result
 
@@ -210,18 +202,15 @@ class BlockedCommUserManager(dict):
     def lift_block(self, id_, unblocked_by):
         unblocked_by = self._convert_steamid_to_db_format(unblocked_by)
 
-        session = Session()
+        with SessionContext() as session:
+            blocked_user = session.query(self.model).filter_by(id=id_).first()
 
-        blocked_user = session.query(self.model).filter_by(id=id_).first()
+            if blocked_user is None:
+                return
 
-        if blocked_user is None:
-            session.close()
-            return
+            blocked_user.lift_block(unblocked_by)
 
-        blocked_user.lift_block(unblocked_by)
-
-        session.commit()
-        session.close()
+            session.commit()
 
         for steamid64, blocked_comm_user_info in self.items():
             if blocked_comm_user_info.id != id_:

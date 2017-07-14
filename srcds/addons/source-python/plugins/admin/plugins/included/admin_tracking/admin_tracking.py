@@ -22,7 +22,7 @@ from admin.core.helpers import extract_ip_address, format_player_name
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
     AdminMenuSection, PlayerBasedAdminCommand)
-from admin.core.orm import Session
+from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
 
@@ -34,19 +34,18 @@ from .models import TrackedPlayerRecord as DB_Record
 # >> FUNCTIONS
 # =============================================================================
 def remove_old_database_records():
-    session = Session()
-    max_record_life_seconds = (
-        int(plugin_config['database']['max_record_life_days']) * 24 * 3600)
+    with SessionContext() as session:
+        max_record_life_seconds = (
+            int(plugin_config['database']['max_record_life_days']) * 24 * 3600)
 
-    (
-        session
-        .query(DB_Record)
-        .filter(DB_Record.seen_at < time() - max_record_life_seconds)
-        .delete(synchronize_session=False)
-    )
+        (
+            session
+            .query(DB_Record)
+            .filter(DB_Record.seen_at < time() - max_record_life_seconds)
+            .delete(synchronize_session=False)
+        )
 
-    session.commit()
-    session.close()
+        session.commit()
 
 
 # =============================================================================
@@ -99,41 +98,39 @@ class _TrackedPlayer(list):
         if self.steamid is None:
             return
 
-        session = Session()
+        with SessionContext() as session:
+            db_record = (
+                session
+                .query(DB_Record)
+                .filter_by(steamid64=self.steamid)
+                .order_by(DB_Record.seen_at.desc())
+                .first()
+            )
 
-        db_record = (
-            session
-            .query(DB_Record)
-            .filter_by(steamid64=self.steamid)
-            .order_by(DB_Record.seen_at.desc())
-            .first()
-        )
+            if db_record is None:
+                last_name = last_ip_address = ""
+            else:
+                last_name = db_record.name
+                last_ip_address = db_record.ip_address
 
-        if db_record is None:
-            last_name = last_ip_address = ""
-        else:
-            last_name = db_record.name
-            last_ip_address = db_record.ip_address
+            for record in self:
+                if (
+                        record.name == last_name and
+                        record.ip_address == last_ip_address
+                ):
+                    continue
 
-        for record in self:
-            if (
-                    record.name == last_name and
-                    record.ip_address == last_ip_address
-            ):
-                continue
+                db_record = DB_Record()
+                db_record.steamid64 = self.steamid
+                db_record.name = record.name
+                db_record.ip_address = record.ip_address
+                db_record.seen_at = record.seen_at
 
-            db_record = DB_Record()
-            db_record.steamid64 = self.steamid
-            db_record.name = record.name
-            db_record.ip_address = record.ip_address
-            db_record.seen_at = record.seen_at
+                session.add(db_record)
 
-            session.add(db_record)
+                last_name, last_ip_address = record.name, record.ip_address
 
-            last_name, last_ip_address = record.name, record.ip_address
-
-        session.commit()
-        session.close()
+            session.commit()
 
         self.clear()
 
@@ -262,17 +259,15 @@ class _TrackPopupFeature(PlayerBasedFeature):
                 break
 
         # Secondly, add records from the database
-        session = Session()
+        with SessionContext() as session:
 
-        db_records = (
-            session
+            db_records = (
+                session
                 .query(DB_Record)
                 .filter_by(steamid64=steamid64)
                 .order_by(DB_Record.seen_at.desc())
                 .all()
-        )
-
-        session.close()
+            )
 
         for db_record in db_records:
             self._records_to_show.append(_TrackPopupRecord(
@@ -310,17 +305,14 @@ class _TrackPopupFeature(PlayerBasedFeature):
             ))
 
         # Secondly, add records from the database
-        session = Session()
-
-        db_records = (
-            session
-            .query(DB_Record)
-            .filter_by(ip_address=ip_address)
-            .order_by(DB_Record.seen_at.desc())
-            .all()
-        )
-
-        session.close()
+        with SessionContext() as session:
+            db_records = (
+                session
+                .query(DB_Record)
+                .filter_by(ip_address=ip_address)
+                .order_by(DB_Record.seen_at.desc())
+                .all()
+            )
 
         for db_record in db_records:
             if db_record.steamid64 in seen_steamids:
