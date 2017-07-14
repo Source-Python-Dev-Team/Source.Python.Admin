@@ -9,7 +9,7 @@ from players.entity import Player
 # Source.Python Admin
 from admin.core.clients import RemoteClient
 from admin.core.features import BaseFeature
-from admin.core.frontends.menus import BasePlayerBasedAdminCommand
+from admin.core.frontends.menus import BasePlayerBasedMenuCommand
 from admin.core.frontends.motd import BasePlayerBasedFeaturePage
 
 # Included Plugin
@@ -128,7 +128,7 @@ class LeftPlayerBasedFeature(BaseFeature):
         return not another_client.has_permission(self.flag)
 
 
-class LeftPlayerBasedAdminCommand(BasePlayerBasedAdminCommand):
+class LeftPlayerBasedMenuCommand(BasePlayerBasedMenuCommand):
     base_filter = 'all'
 
     def _get_player_id(self, player):

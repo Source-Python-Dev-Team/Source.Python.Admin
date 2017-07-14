@@ -9,7 +9,7 @@ from players.entity import Player
 from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    AdminMenuSection, PlayerBasedAdminCommand)
+    MenuSection, PlayerBasedMenuCommand)
 from admin.core.frontends.motd import (
     main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import log_admin_action
@@ -104,16 +104,16 @@ class _ResurrectPage(PlayerBasedFeaturePage):
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
-menu_section = main_menu.add_entry(AdminMenuSection(
+menu_section = main_menu.add_entry(MenuSection(
     main_menu, plugin_strings['section_title']))
 
-slay_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
+slay_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     slay_feature,
     menu_section,
     plugin_strings['popup_title slay']
 ))
 
-resurrect_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
+resurrect_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     resurrect_feature,
     menu_section,
     plugin_strings['popup_title resurrect']

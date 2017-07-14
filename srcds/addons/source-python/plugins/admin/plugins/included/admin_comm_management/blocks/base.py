@@ -17,7 +17,7 @@ from sqlalchemy.sql.expression import and_, or_
 # Source.Python Admin
 from admin.core.clients import clients
 from admin.core.features import BaseFeature
-from admin.core.frontends.menus import AdminCommand, PlayerBasedAdminCommand
+from admin.core.frontends.menus import MenuCommand, PlayerBasedMenuCommand
 from admin.core.helpers import format_player_name
 from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
@@ -252,7 +252,7 @@ class BlockCommFeature(BaseFeature):
         return not another_client.has_permission(self.flag)
 
 
-class BlockCommAdminCommand(PlayerBasedAdminCommand):
+class BlockCommMenuCommand(PlayerBasedMenuCommand):
     base_filter = 'human'
 
     def __init__(self, feature, parent, title, id_=None):
@@ -299,7 +299,7 @@ class UnblockCommFeature(BaseFeature):
         ).start()
 
 
-class _UnblockCommAdminCommand(AdminCommand):
+class _UnblockCommMenuCommand(MenuCommand):
     popup_title = None
 
     def __init__(self, feature, parent, title, id_=None):
@@ -344,12 +344,12 @@ class _UnblockCommAdminCommand(AdminCommand):
         client.send_popup(self.popup)
 
 
-class UnblockAnyCommAdminCommand(_UnblockCommAdminCommand):
+class UnblockAnyCommMenuCommand(_UnblockCommMenuCommand):
     def _get_blocks(self, client):
         return self.feature.blocked_comm_user_manager.get_active_blocks()
 
 
-class UnblockMyCommAdminCommand(_UnblockCommAdminCommand):
+class UnblockMyCommMenuCommand(_UnblockCommMenuCommand):
     def _get_blocks(self, client):
         return self.feature.blocked_comm_user_manager.get_active_blocks(
             blocked_by=client.steamid)

@@ -21,7 +21,7 @@ from admin.core.clients import clients
 from admin.core.helpers import extract_ip_address, format_player_name
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    AdminMenuSection, PlayerBasedAdminCommand)
+    MenuSection, PlayerBasedMenuCommand)
 from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
@@ -351,7 +351,7 @@ class _TrackPopupFeature(PlayerBasedFeature):
 track_popup_feature = _TrackPopupFeature()
 
 
-class _TrackMenuCommand(PlayerBasedAdminCommand):
+class _TrackMenuCommand(PlayerBasedMenuCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 
@@ -365,7 +365,7 @@ tracked_players = _TrackedPlayerDictionary(_TrackedPlayer)
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
-menu_section = main_menu.add_entry(AdminMenuSection(
+menu_section = main_menu.add_entry(MenuSection(
     main_menu, plugin_strings['section_title']))
 
 track_menu_command = menu_section.add_entry(_TrackMenuCommand(

@@ -20,7 +20,7 @@ from admin.core.memory import custom_server
 # Included Plugin
 from ..config import plugin_config
 from ..left_player import (
-    LeftPlayerBasedAdminCommand, LeftPlayerBasedFeature,
+    LeftPlayerBasedMenuCommand, LeftPlayerBasedFeature,
     LeftPlayerBasedFeaturePage, LeftPlayerIter)
 from ..models import BannedSteamID
 from ..strings import plugin_strings
@@ -165,7 +165,7 @@ class _SearchBadSteamIDBansPopupFeature(SearchBadBansPopupFeature):
 search_bad_steamid_bans_popup_feature = _SearchBadSteamIDBansPopupFeature()
 
 
-class BanSteamIDMenuCommand(LeftPlayerBasedAdminCommand):
+class BanSteamIDMenuCommand(LeftPlayerBasedMenuCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 

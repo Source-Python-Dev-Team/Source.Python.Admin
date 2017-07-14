@@ -12,7 +12,7 @@ from .core.clients import clients
 from .core.events.storage import admin_resource_list
 from .core.listeners import (on_spa_loaded_listener_manager,
                              on_spa_unloaded_listener_manager)
-from .core.frontends.menus import AdminMenuSection
+from .core.frontends.menus import MenuSection
 from .core.frontends.motd import MainPage
 from .core.orm import Base, engine
 from .core.plugins.command import admin_command_manager
@@ -29,7 +29,7 @@ Base.metadata.create_all(engine)
 # =============================================================================
 # >> GLOBAL VARIABLES
 # =============================================================================
-main_menu = AdminMenuSection(None, strings_common['title main'], 'admin')
+main_menu = MenuSection(None, strings_common['title main'], 'admin')
 
 
 # =============================================================================

@@ -11,7 +11,7 @@ from players.teams import teams_by_number
 from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    AdminMenuSection, PlayerBasedAdminCommand)
+    MenuSection, PlayerBasedMenuCommand)
 from admin.core.helpers import log_admin_action
 from admin.core.plugins.strings import PluginStrings
 
@@ -100,36 +100,36 @@ delayed_move_to_ct_feature = _DelayedMoveToCTFeature()
 # =============================================================================
 # >> MENU ENTRIES
 # =============================================================================
-menu_section = main_menu.add_entry(AdminMenuSection(
+menu_section = main_menu.add_entry(MenuSection(
     main_menu, plugin_strings['section_title']))
 
-move_to_spec_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
+move_to_spec_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     move_to_spec_feature,
     menu_section,
     plugin_strings['popup_title move_to_spec']
 ))
 
-move_to_t_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
+move_to_t_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     move_to_t_feature,
     menu_section,
     plugin_strings['popup_title move_to_t']
 ))
 
-move_to_ct_menu_command = menu_section.add_entry(PlayerBasedAdminCommand(
+move_to_ct_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     move_to_ct_feature,
     menu_section,
     plugin_strings['popup_title move_to_ct']
 ))
 
 delayed_move_to_t_menu_command = menu_section.add_entry(
-    PlayerBasedAdminCommand(
+    PlayerBasedMenuCommand(
         delayed_move_to_t_feature,
         menu_section,
         plugin_strings['popup_title move_to_t_delayed']
 ))
 
 delayed_move_to_ct_menu_command = menu_section.add_entry(
-    PlayerBasedAdminCommand(
+    PlayerBasedMenuCommand(
         delayed_move_to_ct_feature,
         menu_section,
         plugin_strings['popup_title move_to_ct_delayed']

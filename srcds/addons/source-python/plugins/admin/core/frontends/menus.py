@@ -21,7 +21,7 @@ strings_menus = LangStrings("admin/menus")
 # =============================================================================
 # >> CLASSES
 # =============================================================================
-class AdminMenuEntry:
+class MenuEntry:
     """Represent a selectable entry in main admin menu or its submenus."""
     def __init__(self, parent, title, id_=None):
         self._parent = parent
@@ -50,7 +50,7 @@ class AdminMenuEntry:
         raise NotImplementedError
 
 
-class AdminMenuSection(AdminMenuEntry, list):
+class MenuSection(MenuEntry, list):
     """Represents a selectable section of other entries in admin menus."""
     def __init__(self, parent, title, id_=None):
         super().__init__(parent, title, id_)
@@ -77,7 +77,7 @@ class AdminMenuSection(AdminMenuEntry, list):
                     continue
 
                 selectable = item.is_selectable(client)
-                if isinstance(item, AdminMenuSection):
+                if isinstance(item, MenuSection):
                     title = strings_menus['extensible'].tokenized(
                         item=item.title)
                 else:
@@ -93,9 +93,9 @@ class AdminMenuSection(AdminMenuEntry, list):
     def add_entry(self, entry):
         """Add another entry to this section then sort again.
 
-        :param AdminMenuEntry entry: Given entry.
+        :param MenuEntry entry: Given entry.
         :return: Passed entry without alteration.
-        :rtype: AdminMenuEntry
+        :rtype: MenuEntry
         """
         self.append(entry)
         self.sort(key=lambda entry_: (self.order.index(entry_.id)
@@ -145,13 +145,13 @@ class AdminMenuSection(AdminMenuEntry, list):
         client.send_popup(self.popup)
 
 
-class AdminCommand(AdminMenuEntry):
+class MenuCommand(MenuEntry):
     """Base class for entry that is bound to execute a feature."""
     def __init__(self, feature, parent, title, id_=None):
-        """Initialize AdminCommand instance.
+        """Initialize MenuCommand instance.
 
         :param feature: Feature instance this entry is bound to execute.
-        :param parent: Parent AdminMenuSection instance.
+        :param parent: Parent MenuSection instance.
         :param title: TranslationStrings instance.
         :param str|None id_: String ID that will be used to sort this item.
         """
@@ -186,10 +186,6 @@ class AdminCommand(AdminMenuEntry):
         return client.has_permission(self.feature.flag)
 
     def select(self, client):
-        if not self.is_visible(client) or not self.is_selectable(client):
-            client.tell(strings_common['unavailable'])
-            return
-
         client.active_popup = None
 
         self.feature.execute(client)
@@ -226,18 +222,18 @@ class PlayerBasedMenuDraft:
         self.options = []
 
 
-class BasePlayerBasedAdminCommand(AdminCommand):
+class BasePlayerBasedMenuCommand(MenuCommand):
     """Base class for entry that is bound to perform a command on the players.
     """
     # Allow selecting multiple players at once?
     allow_multiple_choices = True
 
     def __init__(self, feature, parent, title, id_=None):
-        """Initialize BasePlayerBasedAdminCommand instance.
+        """Initialize BasePlayerBasedMenuCommand instance.
 
         :param feature: PlayerBasedFeature instance this entry is bound to
         execute.
-        :param parent: Parent AdminMenuSection instance.
+        :param parent: Parent MenuSection instance.
         :param title: TranslationStrings instance.
         :param str|None id_: String ID that will be used to sort this item.
         """
@@ -506,10 +502,6 @@ class BasePlayerBasedAdminCommand(AdminCommand):
         :param list player_ids: Unfiltered list of IDs.
         """
 
-        if not self.is_visible(client) or not self.is_selectable(client):
-            client.tell(strings_common['unavailable'])
-            return
-
         client.active_popup = None
 
         for player in self._filter_player_ids(client, player_ids):
@@ -532,10 +524,14 @@ class BasePlayerBasedAdminCommand(AdminCommand):
         return format_player_name(player.name)
 
     def select(self, client):
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
+
         client.send_popup(self.popup)
 
 
-class PlayerBasedAdminCommand(BasePlayerBasedAdminCommand):
+class PlayerBasedMenuCommand(BasePlayerBasedMenuCommand):
     base_filter = 'all'
 
     def _get_player_id(self, player):

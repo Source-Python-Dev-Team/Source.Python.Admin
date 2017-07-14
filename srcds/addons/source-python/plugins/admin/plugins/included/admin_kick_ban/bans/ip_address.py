@@ -15,7 +15,7 @@ from admin.core.helpers import (
 # Included Plugin
 from ..config import plugin_config
 from ..left_player import (
-    LeftPlayerBasedAdminCommand, LeftPlayerBasedFeature,
+    LeftPlayerBasedMenuCommand, LeftPlayerBasedFeature,
     LeftPlayerBasedFeaturePage, LeftPlayerIter)
 from ..models import BannedIPAddress
 from ..strings import plugin_strings
@@ -145,7 +145,7 @@ search_bad_ip_address_bans_popup_feature = (
     _SearchBadIPAddressBansPopupFeature())
 
 
-class BanIPAddressMenuCommand(LeftPlayerBasedAdminCommand):
+class BanIPAddressMenuCommand(LeftPlayerBasedMenuCommand):
     base_filter = 'human'
     allow_multiple_choices = False
 

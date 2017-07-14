@@ -15,8 +15,8 @@ from admin.core.helpers import log_admin_action
 from ..models import BlockedVoiceUser
 from ..strings import plugin_strings
 from .base import (
-    BlockCommFeature, BlockedCommUserManager, UnblockAnyCommAdminCommand,
-    UnblockCommFeature, UnblockMyCommAdminCommand)
+    BlockCommFeature, BlockedCommUserManager, UnblockAnyCommMenuCommand,
+    UnblockCommFeature, UnblockMyCommMenuCommand)
 
 
 # =============================================================================
@@ -95,11 +95,11 @@ class _UnblockMyVoiceFeature(_UnblockVoiceFeature):
 unblock_my_voice_feature = _UnblockMyVoiceFeature()
 
 
-class UnblockAnyVoiceAdminCommand(UnblockAnyCommAdminCommand):
+class UnblockAnyVoiceMenuCommand(UnblockAnyCommMenuCommand):
     popup_title = plugin_strings['popup_title unblock_voice_any']
 
 
-class UnblockMyVoiceAdminCommand(UnblockMyCommAdminCommand):
+class UnblockMyVoiceMenuCommand(UnblockMyCommMenuCommand):
     popup_title = plugin_strings['popup_title unblock_voice']
 
 

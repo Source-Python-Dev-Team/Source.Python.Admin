@@ -13,8 +13,8 @@ from admin.core.helpers import log_admin_action
 from ..models import BlockedChatUser
 from ..strings import plugin_strings
 from .base import (
-    BlockCommFeature, BlockedCommUserManager, UnblockAnyCommAdminCommand,
-    UnblockCommFeature, UnblockMyCommAdminCommand)
+    BlockCommFeature, BlockedCommUserManager, UnblockAnyCommMenuCommand,
+    UnblockCommFeature, UnblockMyCommMenuCommand)
 
 
 # =============================================================================
@@ -70,11 +70,11 @@ class _UnblockMyChatFeature(_UnblockChatFeature):
 unblock_my_chat_feature = _UnblockMyChatFeature()
 
 
-class UnblockAnyChatAdminCommand(UnblockAnyCommAdminCommand):
+class UnblockAnyChatMenuCommand(UnblockAnyCommMenuCommand):
     popup_title = plugin_strings['popup_title unblock_chat_any']
 
 
-class UnblockMyChatAdminCommand(UnblockMyCommAdminCommand):
+class UnblockMyChatMenuCommand(UnblockMyCommMenuCommand):
     popup_title = plugin_strings['popup_title unblock_chat']
 
 
