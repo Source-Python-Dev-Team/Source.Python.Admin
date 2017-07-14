@@ -186,6 +186,10 @@ class AdminCommand(AdminMenuEntry):
         return client.has_permission(self.feature.flag)
 
     def select(self, client):
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
+
         client.active_popup = None
 
         self.feature.execute(client)
