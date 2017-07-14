@@ -15,7 +15,7 @@ from steam import SteamID
 from translations.manager import language_manager
 
 # Site-Package
-from sqlalchemy.sql.expression import and_
+from sqlalchemy.sql.expression import and_, or_
 
 # Source.Python Admin
 from admin.core.clients import clients
@@ -131,7 +131,7 @@ class BannedUniqueIDManager(dict):
             if banned_user.is_unbanned:
                 continue
 
-            if -1 < banned_user.expires_at < current_time:
+            if 0 <= banned_user.expires_at < current_time:
                 continue
 
             self[banned_user.uniqueid] = _BannedPlayerInfo(
@@ -208,10 +208,13 @@ class BannedUniqueIDManager(dict):
             if expired:
                 query = query.filter(and_(
                     self.model.expires_at < current_time,
-                    self.model.expires_at > -1
+                    self.model.expires_at >= 0
                 ))
             else:
-                query = query.filter(self.model.expires_at >= current_time)
+                query = query.filter(or_(
+                    self.model.expires_at >= current_time,
+                    self.model.expires_at < 0
+                ))
 
         if unbanned is not None:
             query = query.filter_by(is_unbanned=unbanned)
