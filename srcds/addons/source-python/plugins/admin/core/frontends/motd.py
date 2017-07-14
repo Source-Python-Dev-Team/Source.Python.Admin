@@ -523,6 +523,13 @@ def listener_on_client_active(index):
 
 @OnClientDisconnect
 def listener_on_client_disconnect(index):
-    player = Player(index)
+    try:
+        player = Player(index)
+    except ValueError:
+
+        # If player disconnects before activation, Player instantiation will
+        # raise. Well, we'd never have such player in any of the pages anyways.
+        return
+
     for ws_player_based_page in _ws_player_based_pages:
         ws_player_based_page.send_remove_id(player)
