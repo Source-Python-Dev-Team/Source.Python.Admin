@@ -2,20 +2,27 @@
 # >> IMPORTS
 # =============================================================================
 # Source.Python
-from core import GAME_NAME
 from engines.server import server
 from listeners import OnNetworkidValidated
 from listeners.tick import GameThread
-from memory import make_object
-from memory.hooks import PostHook
-from players import Client
 from players.entity import Player
 from players.helpers import get_client_language
-from translations.manager import language_manager
 
 # Source.Python Admin
+from admin.core import admin_core_logger
 from admin.core.helpers import format_player_name, log_admin_action
-from admin.core.memory import custom_server
+
+# Custom Package
+try:
+    from connect_filter import ConnectFilter
+except ImportError:
+
+    # TODO: Don't log into core
+    admin_core_logger.log_message(
+        "ConnectFilter package is not installed, we won't be able to reject "
+        "banned SteamIDs early (before their validation)")
+
+    ConnectFilter = lambda callback: callback
 
 # Included Plugin
 from ..config import plugin_config
@@ -265,30 +272,15 @@ def listener_on_networkid_validated(name, steamid):
     if client is None:
         return
 
-    client.disconnect(plugin_strings['default_ban_reason'].get_string(
-        language_manager.default))
+    client.disconnect(plugin_strings['default_ban_reason'].get_string())
 
 
 # =============================================================================
-# >> HOOKS
+# >> CONNECT FILTERS
 # =============================================================================
-@PostHook(custom_server.check_challenge_type)
-def post_check_challenge_type(args, return_value=0):
-    client = make_object(Client, args[1] + 4)
-    if not banned_steamid_manager.is_banned(client.steamid):
-        return
+@ConnectFilter
+def connect_filter(client):
+    if banned_steamid_manager.is_banned(client.steamid):
+        return plugin_strings['default_ban_reason']
 
-    if GAME_NAME == 'csgo':
-        custom_server.reject_connection(
-            args[3],
-            plugin_strings['default_ban_reason'].get_string(
-                language_manager.default)
-        )
-    else:
-        custom_server.reject_connection(
-            args[3], args[7],
-            plugin_strings['default_ban_reason'].get_string(
-                language_manager.default)
-        )
-
-    return False
+    return None
