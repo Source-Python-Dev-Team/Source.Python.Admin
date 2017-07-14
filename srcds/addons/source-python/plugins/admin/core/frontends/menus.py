@@ -144,6 +144,9 @@ class MenuSection(MenuEntry, list):
 
         client.send_popup(self.popup)
 
+# Main section
+main_menu = MenuSection(None, strings_common['title main'], 'admin')
+
 
 class MenuCommand(MenuEntry):
     """Base class for entry that is bound to execute a feature."""

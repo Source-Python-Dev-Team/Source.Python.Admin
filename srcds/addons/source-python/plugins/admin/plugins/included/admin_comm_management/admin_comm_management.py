@@ -2,8 +2,7 @@
 # >> IMPORTS
 # =============================================================================
 # Source.Python Admin
-from admin.admin import main_menu
-from admin.core.frontends.menus import MenuSection
+from admin.core.frontends.menus import main_menu, MenuSection
 
 # Included Plugin
 from .blocks.base import BlockCommMenuCommand

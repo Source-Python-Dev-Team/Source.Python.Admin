@@ -6,10 +6,9 @@ from events import Event
 from players.entity import Player
 
 # Source.Python Admin
-from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    MenuSection, PlayerBasedMenuCommand)
+    main_menu, MenuSection, PlayerBasedMenuCommand)
 from admin.core.frontends.motd import (
     main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import log_admin_action

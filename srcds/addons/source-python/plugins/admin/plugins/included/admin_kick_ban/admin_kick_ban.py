@@ -5,10 +5,9 @@
 from players.helpers import get_client_language
 
 # Source.Python Admin
-from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    MenuCommand, MenuSection, PlayerBasedMenuCommand)
+    main_menu, MenuCommand, MenuSection, PlayerBasedMenuCommand)
 from admin.core.frontends.motd import (
     main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import log_admin_action

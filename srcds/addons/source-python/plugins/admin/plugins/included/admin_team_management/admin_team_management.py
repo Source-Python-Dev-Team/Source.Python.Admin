@@ -8,10 +8,9 @@ from players.entity import Player
 from players.teams import teams_by_number
 
 # Source.Python Admin
-from admin.admin import main_menu
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    MenuSection, PlayerBasedMenuCommand)
+    main_menu, MenuSection, PlayerBasedMenuCommand)
 from admin.core.helpers import log_admin_action
 from admin.core.plugins.strings import PluginStrings
 

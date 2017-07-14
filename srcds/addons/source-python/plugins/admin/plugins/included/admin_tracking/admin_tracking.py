@@ -16,12 +16,11 @@ from players.entity import Player
 from steam import SteamID
 
 # Source.Python Admin
-from admin.admin import main_menu
 from admin.core.clients import clients
 from admin.core.helpers import extract_ip_address, format_player_name
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    MenuSection, PlayerBasedMenuCommand)
+    main_menu, MenuSection, PlayerBasedMenuCommand)
 from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
 from admin.core.plugins.strings import PluginStrings
