@@ -7,6 +7,7 @@ from players.entity import Player
 
 # Source.Python Admin
 from admin.core.features import PlayerBasedFeature
+from admin.core.frontends.commands import PlayerBasedFeatureCommand
 from admin.core.frontends.menus import (
     main_menu, MenuSection, PlayerBasedMenuCommand)
 from admin.core.frontends.motd import (
@@ -98,6 +99,13 @@ class _ResurrectPage(PlayerBasedFeaturePage):
 
         if self.is_websocket and self in _ws_resurrect_pages:
             _ws_resurrect_pages.remove(self)
+
+
+# =============================================================================
+# >> COMMAND FRONTEND
+# =============================================================================
+PlayerBasedFeatureCommand("slay", slay_feature)
+PlayerBasedFeatureCommand("resurrect", resurrect_feature)
 
 
 # =============================================================================
