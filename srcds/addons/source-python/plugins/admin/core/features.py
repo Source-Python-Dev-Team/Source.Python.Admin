@@ -72,7 +72,7 @@ class PlayerBasedFeature(BaseFeature):
         if not self.allow_execution_on_self and client.player == player:
             return False
 
-        if self.allow_execution_on_equal_priority:
+        if self.allow_execution_on_equal_priority or client.player == player:
             return True
 
         another_client = clients[player.index]
