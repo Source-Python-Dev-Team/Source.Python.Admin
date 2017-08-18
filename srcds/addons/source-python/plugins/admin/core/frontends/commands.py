@@ -93,49 +93,63 @@ class BaseFeatureCommand:
 
 
 class FeatureCommand(BaseFeatureCommand):
+    def _execute(self, command_info):
+        client = clients[command_info.index]
+
+        # Sync execution to avoid issuer replacement if the feature itself
+        # is going to execute any commands
+        client.sync_execution(self.feature.execute, (client,))
+
     def _get_public_chat_callback(self):
         def public_chat_callback(command_info):
-            client = clients[command_info.index]
-
-            # Sync execution to avoid issuer replacement if the feature itself
-            # is going to execute any commands
-            client.sync_execution(self.feature.execute, (client, ))
-
+            self._execute(command_info)
             return CommandReturn.CONTINUE
 
         return public_chat_callback
 
     def _get_private_chat_callback(self):
         def private_chat_callback(command_info):
-            client = clients[command_info.index]
-            client.sync_execution(self.feature.execute, (client,))
+            self._execute(command_info)
             return CommandReturn.BLOCK
 
         return private_chat_callback
 
     def _get_client_callback(self):
         def client_callback(command_info):
-            client = clients[command_info.index]
-            client.sync_execution(self.feature.execute, (client,))
+            self._execute(command_info)
 
         return client_callback
 
 
 class PlayerBasedFeatureCommand(BaseFeatureCommand):
+    def __init__(self, commands, feature, deny_mass_execution=False):
+        super().__init__(commands, feature)
+
+        self._deny_mass_execution = deny_mass_execution
+
+    def _execute(self, command_info, filter_str, filter_args):
+        client = clients[command_info.index]
+
+        players = []
+        for player in iter_filter_targets(
+                filter_str, filter_args, client.player):
+
+            if not self.feature.filter(client, player):
+                continue
+
+            players.append(player)
+
+        if self._deny_mass_execution and len(players) > 1:
+            return
+
+        for player in players:
+            client.sync_execution(self.feature.execute, (client, player))
+
     def _get_public_chat_callback(self):
         def public_chat_callback(
                 command_info, filter_str:str, filter_args:str=""):
 
-            client = clients[command_info.index]
-
-            for player in iter_filter_targets(
-                    filter_str, filter_args, client.player):
-
-                if not self.feature.filter(client, player):
-                    continue
-
-                client.sync_execution(self.feature.execute, (client, player))
-
+            self._execute(command_info, filter_str, filter_args)
             return CommandReturn.CONTINUE
 
         return public_chat_callback
@@ -144,30 +158,13 @@ class PlayerBasedFeatureCommand(BaseFeatureCommand):
         def private_chat_callback(
                 command_info, filter_str:str, filter_args:str=""):
 
-            client = clients[command_info.index]
-
-            for player in iter_filter_targets(
-                    filter_str, filter_args, client.player):
-
-                if not self.feature.filter(client, player):
-                    continue
-
-                client.sync_execution(self.feature.execute, (client, player))
-
+            self._execute(command_info, filter_str, filter_args)
             return CommandReturn.BLOCK
 
         return private_chat_callback
 
     def _get_client_callback(self):
         def client_callback(command_info, filter_str:str, filter_args:str=""):
-            client = clients[command_info.index]
-
-            for player in iter_filter_targets(
-                    filter_str, filter_args, client.player):
-
-                if not self.feature.filter(client, player):
-                    continue
-
-                client.sync_execution(self.feature.execute, (client, player))
+            self._execute(command_info, filter_str, filter_args)
 
         return client_callback
