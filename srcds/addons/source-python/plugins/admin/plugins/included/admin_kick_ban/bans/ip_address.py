@@ -20,9 +20,9 @@ from ..left_player import (
 from ..models import BannedIPAddress
 from ..strings import plugin_strings
 from .base import (
-    BannedUniqueIDManager, LiftBanMOTDFeature, LiftBanPopupFeature,
-    LiftAnyBanPopupFeature, ReviewBanMOTDFeature, ReviewBanPopupFeature,
-    LiftBanPage, ReviewBanPage, SearchBadBansPopupFeature)
+    BannedUniqueIDManager, LiftAnyBanMenuCommand, LiftBanFeature, LiftBanPage,
+    LiftMyBanMenuCommand, RemoveBadBanFeature, RemoveBadBanMenuCommand,
+    ReviewBanFeature, ReviewBanMenuCommand, ReviewBanPage)
 
 
 # =============================================================================
@@ -90,61 +90,6 @@ class _BanIPAddressFeature(LeftPlayerBasedFeature):
 ban_ip_address_feature = _BanIPAddressFeature()
 
 
-class _LiftIPAddressBanMOTDFeature(LiftBanMOTDFeature):
-    flag = "admin.admin_kick_ban.ban_ip_address"
-    banned_uniqueid_manager = banned_ip_address_manager
-    ws_lift_ban_pages = _ws_lift_ip_address_pages
-
-# The singleton object of the _LiftSteamIDBanMOTDFeature class.
-lift_ip_address_ban_motd_feature = _LiftIPAddressBanMOTDFeature()
-
-
-class _LiftIPAddressBanPopupFeature(LiftBanPopupFeature):
-    flag = "admin.admin_kick_ban.ban_ip_address"
-    popup_title = plugin_strings['popup_title lift_ip_address']
-    banned_uniqueid_manager = banned_ip_address_manager
-
-# The singleton object of the _LiftIPAddressBanPopupFeature class.
-lift_ip_address_ban_popup_feature = _LiftIPAddressBanPopupFeature()
-
-
-class _LiftAnyIPAddressBanPopupFeature(LiftAnyBanPopupFeature):
-    flag = "admin.admin_kick_ban.lift_reviewed_ip_address"
-    popup_title = plugin_strings['popup_title lift_reviewed_ip_address']
-    banned_uniqueid_manager = banned_ip_address_manager
-
-# The singleton object of the _LiftAnyIPAddressBanPopupFeature class.
-lift_any_ip_address_ban_popup_feature = _LiftAnyIPAddressBanPopupFeature()
-
-
-class _ReviewIPAddressBanMOTDFeature(ReviewBanMOTDFeature):
-    flag = "admin.admin_kick_ban.ban_ip_address"
-    banned_uniqueid_manager = banned_ip_address_manager
-    ws_review_ban_pages = _ws_review_ip_address_ban_pages
-
-# The singleton object of the _ReviewIPAddressBanMOTDFeature class.
-review_ip_address_ban_motd_feature = _ReviewIPAddressBanMOTDFeature()
-
-
-class _ReviewIPAddressBanPopupFeature(ReviewBanPopupFeature):
-    flag = "admin.admin_kick_ban.ban_ip_address"
-    popup_title = plugin_strings['popup_title review_ip_address']
-    banned_uniqueid_manager = banned_ip_address_manager
-
-# The singleton object of the _ReviewSteamIDBanPopupFeature class.
-review_ip_address_ban_popup_feature = _ReviewIPAddressBanPopupFeature()
-
-
-class _SearchBadIPAddressBansPopupFeature(SearchBadBansPopupFeature):
-    flag = "admin.admin_kick_ban.search_bad_ip_address_bans"
-    popup_title = plugin_strings['popup_title search_bad_bans']
-    banned_uniqueid_manager = banned_ip_address_manager
-
-# The singleton object of the _SearchBadIPAddressBansPopupFeature class.
-search_bad_ip_address_bans_popup_feature = (
-    _SearchBadIPAddressBansPopupFeature())
-
-
 class BanIPAddressMenuCommand(LeftPlayerBasedMenuCommand):
     base_filter = 'human'
     allow_multiple_choices = False
@@ -163,6 +108,48 @@ class BanIPAddressMenuCommand(LeftPlayerBasedMenuCommand):
                 continue
 
             yield left_player
+
+
+class _LiftIPAddressBanFeature(LiftBanFeature):
+    flag = "admin.admin_kick_ban.ban_ip_address"
+    banned_uniqueid_manager = banned_ip_address_manager
+    ws_lift_ban_pages = _ws_lift_ip_address_pages
+
+# The singleton object of the _LiftIPAddressBanFeature class.
+lift_ip_address_ban_feature = _LiftIPAddressBanFeature()
+
+
+class LiftAnyIPAddressBanMenuCommand(LiftAnyBanMenuCommand):
+    popup_title = plugin_strings['popup_title lift_reviewed_ip_address']
+
+
+class LiftMyIPAddressBanMenuCommand(LiftMyBanMenuCommand):
+    popup_title = plugin_strings['popup_title lift_ip_address']
+
+
+class _ReviewIPAddressBanFeature(ReviewBanFeature):
+    flag = "admin.admin_kick_ban.ban_ip_address"
+    banned_uniqueid_manager = banned_ip_address_manager
+    ws_review_ban_pages = _ws_review_ip_address_ban_pages
+
+# The singleton object of the _ReviewIPAddressBanFeature class.
+review_ip_address_ban_feature = _ReviewIPAddressBanFeature()
+
+
+class ReviewIPAddressBanMenuCommand(ReviewBanMenuCommand):
+    popup_title = plugin_strings['popup_title review_ip_address']
+
+
+class _RemoveBadIPAddressBanFeature(RemoveBadBanFeature):
+    flag = "admin.admin_kick_ban.search_bad_ip_address_bans"
+    banned_uniqueid_manager = banned_ip_address_manager
+
+# The singleton object of the _RemoveBadIPAddressBanFeature class.
+remove_bad_ip_address_ban_feature = _RemoveBadIPAddressBanFeature()
+
+
+class RemoveBadIPAddressBanMenuCommand(RemoveBadBanMenuCommand):
+    popup_title = plugin_strings['popup_title search_bad_bans']
 
 
 class BanIPAddressPage(LeftPlayerBasedFeaturePage):
@@ -201,7 +188,7 @@ class LiftIPAddressBanPage(LiftBanPage):
     admin_plugin_id = "admin_kick_ban"
     admin_plugin_type = "included"
     page_id = "lift_ip_address"
-    feature = lift_ip_address_ban_motd_feature
+    feature = lift_ip_address_ban_feature
 
     def __init__(self, index, page_request_type):
         super().__init__(index, page_request_type)
@@ -220,7 +207,7 @@ class ReviewIPAddressBanPage(ReviewBanPage):
     admin_plugin_id = "admin_kick_ban"
     admin_plugin_type = "included"
     page_id = "review_ip_address"
-    feature = review_ip_address_ban_motd_feature
+    feature = review_ip_address_ban_feature
 
     def __init__(self, index, page_request_type):
         super().__init__(index, page_request_type)

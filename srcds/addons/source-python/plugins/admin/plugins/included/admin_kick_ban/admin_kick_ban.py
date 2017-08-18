@@ -7,24 +7,26 @@ from players.helpers import get_client_language
 # Source.Python Admin
 from admin.core.features import PlayerBasedFeature
 from admin.core.frontends.menus import (
-    main_menu, MenuCommand, MenuSection, PlayerBasedMenuCommand)
+    main_menu, MenuSection, PlayerBasedMenuCommand)
 from admin.core.frontends.motd import (
     main_motd, MOTDSection, MOTDPageEntry, PlayerBasedFeaturePage)
 from admin.core.helpers import log_admin_action
 
 # Included Plugin
 from .bans.ip_address import (
-    ban_ip_address_feature, banned_ip_address_manager,
-    BanIPAddressMenuCommand, BanIPAddressPage,
-    lift_any_ip_address_ban_popup_feature, lift_ip_address_ban_popup_feature,
-    LiftIPAddressBanPage, review_ip_address_ban_popup_feature,
-    ReviewIPAddressBanPage, search_bad_ip_address_bans_popup_feature)
+    ban_ip_address_feature, banned_ip_address_manager, BanIPAddressMenuCommand,
+    BanIPAddressPage, lift_ip_address_ban_feature,
+    LiftAnyIPAddressBanMenuCommand, LiftIPAddressBanPage,
+    LiftMyIPAddressBanMenuCommand, remove_bad_ip_address_ban_feature,
+    RemoveBadIPAddressBanMenuCommand, review_ip_address_ban_feature,
+    ReviewIPAddressBanMenuCommand, ReviewIPAddressBanPage)
 from .bans.steamid import (
-    ban_steamid_feature, banned_steamid_manager,
-    BanSteamIDMenuCommand, BanSteamIDPage,
-    lift_any_steamid_ban_popup_feature, lift_steamid_ban_popup_feature,
-    LiftSteamIDBanPage, review_steamid_ban_popup_feature,
-    ReviewSteamIDBanPage, search_bad_steamid_bans_popup_feature)
+    ban_steamid_feature, banned_steamid_manager, BanSteamIDMenuCommand,
+    BanSteamIDPage, lift_steamid_ban_feature,
+    LiftAnySteamIDBanMenuCommand, LiftSteamIDBanPage,
+    LiftMySteamIDBanMenuCommand, remove_bad_steamid_ban_feature,
+    RemoveBadSteamIDBanMenuCommand, review_steamid_ban_feature,
+    ReviewSteamIDBanMenuCommand, ReviewSteamIDBanPage)
 from .strings import plugin_strings
 
 
@@ -76,6 +78,7 @@ menu_section_steamid = menu_section.add_entry(MenuSection(
 menu_section_ip_address = menu_section.add_entry(MenuSection(
     menu_section, plugin_strings['section_title ip_address_bans']))
 
+"""
 lift_steamid_ban_popup_feature.ban_popup.parent_menu = (
     menu_section_steamid.popup)
 lift_ip_address_ban_popup_feature.ban_popup.parent_menu = (
@@ -88,6 +91,7 @@ review_steamid_ban_popup_feature.ban_popup.parent_menu = (
     menu_section_steamid.popup)
 review_ip_address_ban_popup_feature.ban_popup.parent_menu = (
     menu_section_ip_address.popup)
+"""
 
 menu_section.add_entry(_KickMenuCommand(
     kick_feature,
@@ -104,43 +108,43 @@ menu_section_ip_address.add_entry(BanIPAddressMenuCommand(
     menu_section_ip_address,
     plugin_strings['popup_title ban_ip_address']))
 
-menu_section_steamid.add_entry(MenuCommand(
-    review_steamid_ban_popup_feature,
+menu_section_steamid.add_entry(ReviewSteamIDBanMenuCommand(
+    review_steamid_ban_feature,
     menu_section_steamid,
     plugin_strings['popup_title review_steamid']))
 
-menu_section_ip_address.add_entry(MenuCommand(
-    review_ip_address_ban_popup_feature,
+menu_section_ip_address.add_entry(ReviewIPAddressBanMenuCommand(
+    review_ip_address_ban_feature,
     menu_section_ip_address,
     plugin_strings['popup_title review_ip_address']))
 
-menu_section_steamid.add_entry(MenuCommand(
-    lift_steamid_ban_popup_feature,
+menu_section_steamid.add_entry(LiftMySteamIDBanMenuCommand(
+    lift_steamid_ban_feature,
     menu_section_steamid,
     plugin_strings['popup_title lift_steamid']))
 
-menu_section_ip_address.add_entry(MenuCommand(
-    lift_ip_address_ban_popup_feature,
+menu_section_ip_address.add_entry(LiftMyIPAddressBanMenuCommand(
+    lift_ip_address_ban_feature,
     menu_section_ip_address,
     plugin_strings['popup_title lift_ip_address']))
 
-menu_section_steamid.add_entry(MenuCommand(
-    lift_any_steamid_ban_popup_feature,
+menu_section_steamid.add_entry(LiftAnySteamIDBanMenuCommand(
+    lift_steamid_ban_feature,
     menu_section_steamid,
     plugin_strings['popup_title lift_reviewed_steamid']))
 
-menu_section_ip_address.add_entry(MenuCommand(
-    lift_any_ip_address_ban_popup_feature,
+menu_section_ip_address.add_entry(LiftAnyIPAddressBanMenuCommand(
+    lift_ip_address_ban_feature,
     menu_section_ip_address,
     plugin_strings['popup_title lift_reviewed_ip_address']))
 
-menu_section_steamid.add_entry(MenuCommand(
-    search_bad_steamid_bans_popup_feature,
+menu_section_steamid.add_entry(RemoveBadSteamIDBanMenuCommand(
+    remove_bad_steamid_ban_feature,
     menu_section_steamid,
     plugin_strings['popup_title search_bad_bans']))
 
-menu_section_ip_address.add_entry(MenuCommand(
-    search_bad_ip_address_bans_popup_feature,
+menu_section_ip_address.add_entry(RemoveBadIPAddressBanMenuCommand(
+    remove_bad_ip_address_ban_feature,
     menu_section_ip_address,
     plugin_strings['popup_title search_bad_bans']))
 

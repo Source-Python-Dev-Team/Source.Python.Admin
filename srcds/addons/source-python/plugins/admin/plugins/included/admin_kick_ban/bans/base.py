@@ -19,11 +19,13 @@ from sqlalchemy.sql.expression import and_, or_
 
 # Source.Python Admin
 from admin.core.clients import clients
-from admin.core.features import BaseFeature, Feature
+from admin.core.features import BaseFeature
+from admin.core.frontends.menus import MenuCommand
 from admin.core.frontends.motd import BaseFeaturePage
 from admin.core.helpers import format_player_name, log_admin_action
 from admin.core.orm import SessionContext
 from admin.core.paths import ADMIN_CFG_PATH, get_server_file
+from admin.core.strings import strings_common
 
 # Included Plugin
 from ..strings import plugin_strings
@@ -292,53 +294,47 @@ class BannedUniqueIDManager(dict):
             break
 
 
-class LiftBanMOTDFeature(BaseFeature):
+class LiftBanFeature(BaseFeature):
     feature_abstract = True
     banned_uniqueid_manager = None
     ws_lift_ban_pages = None
 
-    def get_bans(self, client):
-        yield from self.banned_uniqueid_manager.get_active_bans(
-            banned_by=client.steamid, reviewed=False)
-
-    def get_ban_by_id(self, client, ban_id):
-        for banned_player_info in self.get_bans(client):
-            if banned_player_info.id == ban_id:
-                return banned_player_info
-        return None
-
-    def execute(self, client, ban_id, player_name):
+    def execute(self, client, banned_player_info):
         GameThread(
             target=self.banned_uniqueid_manager.lift_ban,
-            args=(ban_id, client.steamid)
+            args=(banned_player_info.id, client.steamid)
         ).start()
 
         for ws_lift_ban_page in self.ws_lift_ban_pages:
-            ws_lift_ban_page.send_remove_ban_id(ban_id)
+            ws_lift_ban_page.send_remove_ban_id(banned_player_info.id)
 
         log_admin_action(plugin_strings['message ban_lifted'].tokenized(
             admin_name=client.name,
-            player_name=player_name,
+            player_name=banned_player_info.name,
         ))
 
 
-class LiftBanPopupFeature(Feature):
-    feature_abstract = True
+class _LiftBanMenuCommand(MenuCommand):
     popup_title = None
-    banned_uniqueid_manager = None
 
-    def __init__(self):
-        self.ban_popup = PagedMenu(title=self.popup_title)
+    def __init__(self, feature, parent, title, id_=None):
+        super().__init__(feature, parent, title, id_)
 
-        @self.ban_popup.register_build_callback
+        self.popup = PagedMenu(title=self.popup_title)
+
+        if parent is not None:
+            self.popup.parent_menu = parent.popup
+
+        @self.popup.register_select_callback
+        def select_callback(popup, index, option):
+            self._popups_done(clients[index], option.value)
+
+        @self.popup.register_build_callback
         def build_callback(popup, index):
-            client = clients[index]
             popup.clear()
 
-            bans = self.banned_uniqueid_manager.get_active_bans(
-                banned_by=client.steamid, reviewed=False)
-
-            for banned_player_info in bans:
+            client = clients[index]
+            for banned_player_info in self._get_bans(client):
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
                         id=banned_player_info.uniqueid,
@@ -346,52 +342,30 @@ class LiftBanPopupFeature(Feature):
                     value=banned_player_info
                 ))
 
-        @self.ban_popup.register_select_callback
-        def select_callback(popup, index, option):
-            client = clients[index]
+    def _popups_done(self, client, banned_player_info):
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
 
-            GameThread(
-                target=self.banned_uniqueid_manager.lift_ban,
-                args=(option.value.id, client.steamid)
-            ).start()
+        self.feature.execute(client, banned_player_info)
 
-            log_admin_action(plugin_strings['message ban_lifted'].tokenized(
-                admin_name=client.name,
-                player_name=option.value.name,
-            ))
+        self._parent.select(client)
 
-    def execute(self, client):
-        client.send_popup(self.ban_popup)
+    def _get_bans(self, client):
+        raise NotImplementedError
+
+    def select(self, client):
+        client.send_popup(self.popup)
 
 
-class LiftAnyBanPopupFeature(Feature):
-    feature_abstract = True
-    popup_title = None
-    banned_uniqueid_manager = None
+class LiftAnyBanMenuCommand(_LiftBanMenuCommand):
+    def __init__(self, feature, parent, title, id_=None):
+        super().__init__(feature, parent, title, id_)
 
-    def __init__(self):
-        # (_BannedPlayerInfo instance, whether confirmed or not)
-        self._selected_bans = PlayerDictionary(lambda index: (None, False))
-
-        self.ban_popup = PagedMenu(title=self.popup_title)
+        self._selected_bans = PlayerDictionary(lambda index: None)
         self.confirm_popup = SimpleMenu()
 
-        @self.ban_popup.register_build_callback
-        def build_callback(popup, index):
-            popup.clear()
-
-            # Get all bans
-            bans = self.banned_uniqueid_manager.get_active_bans()
-
-            for banned_player_info in bans:
-                popup.append(PagedOption(
-                    text=plugin_strings['ban_record'].tokenized(
-                        id=banned_player_info.uniqueid,
-                        name=format_player_name(banned_player_info.name)),
-                    value=(banned_player_info, False)
-                ))
-
-        @self.ban_popup.register_select_callback
+        @self.popup.register_select_callback
         def select_callback(popup, index, option):
             self._selected_bans[index] = option.value
             clients[index].send_popup(self.confirm_popup)
@@ -401,20 +375,20 @@ class LiftAnyBanPopupFeature(Feature):
             popup.clear()
 
             popup.append(Text(plugin_strings['ban_record'].tokenized(
-                name=self._selected_bans[index][0].name,
-                id=self._selected_bans[index][0].uniqueid
+                name=self._selected_bans[index].name,
+                id=self._selected_bans[index].uniqueid
             )))
 
             popup.append(Text(
                 plugin_strings['ban_record admin_steamid'].tokenized(
-                    admin_steamid=self._selected_bans[index][0].banned_by)))
+                    admin_steamid=self._selected_bans[index].banned_by)))
 
             popup.append(Text(plugin_strings['ban_record reason'].tokenized(
-                reason=self._selected_bans[index][0].reason)))
+                reason=self._selected_bans[index].reason)))
 
-            if self._selected_bans[index][0].notes:
+            if self._selected_bans[index].notes:
                 popup.append(Text(plugin_strings['ban_record notes'].tokenized(
-                    notes=self._selected_bans[index][0].notes)))
+                    notes=self._selected_bans[index].notes)))
 
             popup.append(Text(
                 plugin_strings['lift_reviewed_ban_confirmation']))
@@ -422,12 +396,12 @@ class LiftAnyBanPopupFeature(Feature):
             popup.append(SimpleOption(
                 choice_index=1,
                 text=plugin_strings['lift_reviewed_ban_confirmation no'],
-                value=(self._selected_bans[index][0], False),
+                value=(self._selected_bans[index], False),
             ))
             popup.append(SimpleOption(
                 choice_index=2,
                 text=plugin_strings['lift_reviewed_ban_confirmation yes'],
-                value=(self._selected_bans[index][0], True),
+                value=(self._selected_bans[index], True),
             ))
 
         @self.confirm_popup.register_select_callback
@@ -435,63 +409,52 @@ class LiftAnyBanPopupFeature(Feature):
             if not option.value[1]:
                 return
 
-            client = clients[index]
+            self._popups_done(clients[index], option.value[0])
 
-            GameThread(
-                target=self.banned_uniqueid_manager.lift_ban,
-                args=(option.value[0].id, client.steamid)
-            ).start()
-
-            log_admin_action(plugin_strings['message ban_lifted'].tokenized(
-                admin_name=client.name,
-                player_name=option.value[0].name,
-            ))
-
-    def execute(self, client):
-        client.send_popup(self.ban_popup)
+    def _get_bans(self, client):
+        return self.feature.banned_uniqueid_manager.get_active_bans()
 
 
-class ReviewBanMOTDFeature(BaseFeature):
+class LiftMyBanMenuCommand(_LiftBanMenuCommand):
+    def _get_bans(self, client):
+        return self.feature.banned_uniqueid_manager.get_active_bans(
+            banned_by=client.steamid, reviewed=False)
+
+
+class ReviewBanFeature(BaseFeature):
     feature_abstract = True
     banned_uniqueid_manager = None
     ws_review_ban_pages = None
 
-    def get_bans(self, client):
-        yield from self.banned_uniqueid_manager.get_active_bans(
-            banned_by=client.steamid, reviewed=False)
-
-    def get_ban_by_id(self, client, ban_id):
-        for banned_player_info in self.get_bans(client):
-            if banned_player_info.id == ban_id:
-                return banned_player_info
-        return None
-
-    def execute(self, client, ban_id, reason, duration, player_name):
+    def execute(self, client, banned_player_info, reason, duration):
         GameThread(
             target=self.banned_uniqueid_manager.review_ban,
-            args=(ban_id, reason, duration)
+            args=(banned_player_info.id, reason, duration)
         ).start()
 
         for ws_review_ban_page in self.ws_review_ban_pages:
-            ws_review_ban_page.send_remove_ban_id(ban_id)
+            ws_review_ban_page.send_remove_ban_id(banned_player_info.id)
 
         log_admin_action(plugin_strings['message ban_reviewed'].tokenized(
             admin_name=client.name,
-            player_name=player_name,
+            player_name=banned_player_info.name,
             duration=format_ban_duration(duration)
         ))
 
 
-class ReviewBanPopupFeature(Feature):
-    feature_abstract = True
+class ReviewBanMenuCommand(MenuCommand):
     popup_title = None
-    banned_uniqueid_manager = None
 
-    def __init__(self):
+    def __init__(self, feature, parent, title, id_=None):
+        super().__init__(feature, parent, title, id_)
+
         # (_BannedPlayerInfo instance, reason, duration)
         self._selected_bans = PlayerDictionary(lambda index: (None, "", -1))
 
         self.ban_popup = PagedMenu(title=self.popup_title)
+        if parent is not None:
+            self.ban_popup.parent_menu = parent.popup
+
         self.reason_popup = PagedMenu(title=self.popup_title,
                                       parent_menu=self.ban_popup)
 
@@ -503,10 +466,7 @@ class ReviewBanPopupFeature(Feature):
             client = clients[index]
             popup.clear()
 
-            bans = self.banned_uniqueid_manager.get_active_bans(
-                banned_by=client.steamid, reviewed=False)
-
-            for banned_player_info in bans:
+            for banned_player_info in self._get_bans(client):
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
                         id=banned_player_info.uniqueid,
@@ -563,49 +523,68 @@ class ReviewBanPopupFeature(Feature):
 
         @self.duration_popup.register_select_callback
         def select_callback(popup, index, option):
-            client = clients[index]
+            self._popups_done(
+                clients[index],
+                option.value[0], option.value[1], option.value[2])
 
-            GameThread(
-                target=self.banned_uniqueid_manager.review_ban,
-                args=(option.value[0].id, option.value[1], option.value[2])
-            ).start()
+    def _popups_done(self, client, banned_player_info, reason, duration):
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
 
-            log_admin_action(plugin_strings['message ban_reviewed'].tokenized(
-                admin_name=client.name,
-                player_name=option.value[0].name,
-                duration=format_ban_duration(option.value[2])
-            ))
+        self.feature.execute(client, banned_player_info, reason, duration)
 
-    def execute(self, client):
+        self._parent.select(client)
+
+    def _get_bans(self, client):
+        return self.feature.banned_uniqueid_manager.get_active_bans(
+            banned_by=client.steamid, reviewed=False)
+
+    def select(self, client):
         client.send_popup(self.ban_popup)
 
 
-class SearchBadBansPopupFeature(Feature):
+class RemoveBadBanFeature(BaseFeature):
     feature_abstract = True
-    popup_title = None
     banned_uniqueid_manager = None
+    ws_remove_bad_ban_pages = None
 
-    def __init__(self):
-        # (_BannedPlayerInfo instance, whether to remove or not)
-        self._selected_bans = PlayerDictionary(lambda index: (None, False))
+    def execute(self, client, banned_player_info):
+        GameThread(
+            target=self.banned_uniqueid_manager.remove_ban_from_database,
+            args=(banned_player_info.id,)
+        ).start()
+
+        log_admin_action(plugin_strings['message ban_removed'].tokenized(
+            admin_name=client.name,
+            ban_id=banned_player_info.id
+        ))
+
+
+class RemoveBadBanMenuCommand(MenuCommand):
+    popup_title = None
+
+    def __init__(self, feature, parent, title, id_=None):
+        super().__init__(feature, parent, title, id_)
+
+        self._selected_bans = PlayerDictionary(lambda index: None)
 
         self.ban_popup = PagedMenu(title=self.popup_title)
+        if parent is not None:
+            self.ban_popup.parent_menu = parent.popup
+
         self.remove_popup = SimpleMenu()
 
         @self.ban_popup.register_build_callback
         def build_callback(popup, index):
             popup.clear()
 
-            # Get expired, unreviewed, unlifted bans
-            bans = self.banned_uniqueid_manager.get_all_bans(
-                unbanned=False, reviewed=False, expired=True)
-
-            for banned_player_info in bans:
+            for banned_player_info in self._get_bans(clients[index]):
                 popup.append(PagedOption(
                     text=plugin_strings['ban_record'].tokenized(
                         id=banned_player_info.uniqueid,
                         name=format_player_name(banned_player_info.name)),
-                    value=(banned_player_info, False)
+                    value=banned_player_info
                 ))
 
         @self.ban_popup.register_select_callback
@@ -618,17 +597,17 @@ class SearchBadBansPopupFeature(Feature):
             popup.clear()
 
             popup.append(Text(plugin_strings['ban_record'].tokenized(
-                name=self._selected_bans[index][0].name,
-                id=self._selected_bans[index][0].uniqueid
+                name=self._selected_bans[index].name,
+                id=self._selected_bans[index].uniqueid
             )))
 
             popup.append(Text(
                 plugin_strings['ban_record admin_steamid'].tokenized(
-                    admin_steamid=self._selected_bans[index][0].banned_by)))
+                    admin_steamid=self._selected_bans[index].banned_by)))
 
-            if self._selected_bans[index][0].notes:
+            if self._selected_bans[index].notes:
                 popup.append(Text(plugin_strings['ban_record notes'].tokenized(
-                    notes=self._selected_bans[index][0].notes)))
+                    notes=self._selected_bans[index].notes)))
 
             popup.append(Text(
                 plugin_strings['remove_bad_ban_confirmation']))
@@ -636,12 +615,12 @@ class SearchBadBansPopupFeature(Feature):
             popup.append(SimpleOption(
                 choice_index=1,
                 text=plugin_strings['remove_bad_ban_confirmation no'],
-                value=(self._selected_bans[index][0], False),
+                value=(self._selected_bans[index], False),
             ))
             popup.append(SimpleOption(
                 choice_index=2,
                 text=plugin_strings['remove_bad_ban_confirmation yes'],
-                value=(self._selected_bans[index][0], True),
+                value=(self._selected_bans[index], True),
             ))
 
         @self.remove_popup.register_select_callback
@@ -649,19 +628,23 @@ class SearchBadBansPopupFeature(Feature):
             if not option.value[1]:
                 return
 
-            client = clients[index]
+            self._popups_done(clients[index], option.value[0])
 
-            GameThread(
-                target=self.banned_uniqueid_manager.remove_ban_from_database,
-                args=(option.value[0].id, )
-            ).start()
+    def _popups_done(self, client, banned_player_info):
+        if not self.is_visible(client) or not self.is_selectable(client):
+            client.tell(strings_common['unavailable'])
+            return
 
-            log_admin_action(plugin_strings['message ban_removed'].tokenized(
-                admin_name=client.name,
-                ban_id=option.value[0].id
-            ))
+        self.feature.execute(client, banned_player_info)
 
-    def execute(self, client):
+        self._parent.select(client)
+
+    def _get_bans(self, client):
+        # Get expired, unreviewed, unlifted bans
+        return self.feature.banned_uniqueid_manager.get_all_bans(
+                unbanned=False, reviewed=False, expired=True)
+
+    def select(self, client):
         client.send_popup(self.ban_popup)
 
 
@@ -676,11 +659,24 @@ class _BaseBanPage(BaseFeaturePage):
             'banId': ban_id,
         })
 
+    def _get_bans(self, client):
+        raise NotImplementedError
+
+    def _get_ban_by_id(self, client, ban_id):
+        for banned_player_info in self._get_bans(client):
+            if banned_player_info.id == ban_id:
+                return banned_player_info
+        return None
+
 
 class LiftBanPage(_BaseBanPage):
     abstract = True
     page_abstract = True
     feature_page_abstract = True
+
+    def _get_bans(self, client):
+        return self.feature.banned_uniqueid_manager.get_active_bans(
+            banned_by=client.steamid, reviewed=False)
 
     def on_page_data_received(self, data):
         client = clients[self.index]
@@ -688,15 +684,15 @@ class LiftBanPage(_BaseBanPage):
         if data['action'] == "execute":
             ban_id = data['banId']
 
-            banned_player_info = self.feature.get_ban_by_id(client, ban_id)
+            banned_player_info = self._get_ban_by_id(client, ban_id)
             if banned_player_info is None:
 
                 # Might just as well log the ban id and the client, looks like
                 # this client has tried to lift somebody else's ban
                 return
 
-            client.sync_execution(self.feature.execute, (
-                client, banned_player_info.id, banned_player_info.name))
+            client.sync_execution(
+                self.feature.execute, (client, banned_player_info))
 
             self.send_data({
                 'feature-executed': "scheduled"
@@ -706,7 +702,7 @@ class LiftBanPage(_BaseBanPage):
         if data['action'] == "get-bans":
             ban_data = []
 
-            for banned_player_info in self.feature.get_bans(client):
+            for banned_player_info in self._get_bans(client):
                 ban_data.append({
                     'uniqueid': str(banned_player_info.uniqueid),
                     'banId': banned_player_info.id,
@@ -724,6 +720,10 @@ class ReviewBanPage(_BaseBanPage):
     page_abstract = True
     feature_page_abstract = True
 
+    def _get_bans(self, client):
+        return self.feature.banned_uniqueid_manager.get_active_bans(
+            banned_by=client.steamid, reviewed=False)
+
     def on_page_data_received(self, data):
         client = clients[self.index]
 
@@ -732,15 +732,15 @@ class ReviewBanPage(_BaseBanPage):
             reason = data['reason']
             duration = data['duration']
 
-            banned_player_info = self.feature.get_ban_by_id(client, ban_id)
+            banned_player_info = self._get_ban_by_id(client, ban_id)
             if banned_player_info is None:
+
                 # Might just as well log the ban id and the client, looks like
                 # this client has tried to lift somebody else's ban
                 return
 
             client.sync_execution(self.feature.execute, (
-                client, banned_player_info.id, reason, duration,
-                banned_player_info.name))
+                client, banned_player_info, reason, duration))
 
             self.send_data({
                 'feature-executed': "scheduled"
@@ -774,7 +774,7 @@ class ReviewBanPage(_BaseBanPage):
                 })
 
             ban_data = []
-            for banned_player_info in self.feature.get_bans(client):
+            for banned_player_info in self._get_bans(client):
                 ban_data.append({
                     'uniqueid': str(banned_player_info.uniqueid),
                     'banId': banned_player_info.id,

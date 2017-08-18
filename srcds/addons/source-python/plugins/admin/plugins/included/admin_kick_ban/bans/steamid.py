@@ -32,9 +32,9 @@ from ..left_player import (
 from ..models import BannedSteamID
 from ..strings import plugin_strings
 from .base import (
-    BannedUniqueIDManager, LiftBanMOTDFeature, LiftBanPopupFeature,
-    LiftAnyBanPopupFeature, ReviewBanMOTDFeature, ReviewBanPopupFeature,
-    LiftBanPage, ReviewBanPage, SearchBadBansPopupFeature)
+    BannedUniqueIDManager, LiftAnyBanMenuCommand, LiftBanFeature, LiftBanPage,
+    LiftMyBanMenuCommand, RemoveBadBanFeature, RemoveBadBanMenuCommand,
+    ReviewBanFeature, ReviewBanMenuCommand, ReviewBanPage)
 
 
 # =============================================================================
@@ -118,60 +118,6 @@ class _BanSteamIDFeature(LeftPlayerBasedFeature):
 ban_steamid_feature = _BanSteamIDFeature()
 
 
-class _LiftSteamIDBanMOTDFeature(LiftBanMOTDFeature):
-    flag = "admin.admin_kick_ban.ban_steamid"
-    banned_uniqueid_manager = banned_steamid_manager
-    ws_lift_ban_pages = _ws_lift_steamid_pages
-
-# The singleton object of the _LiftSteamIDBanMOTDFeature class.
-lift_steamid_ban_motd_feature = _LiftSteamIDBanMOTDFeature()
-
-
-class _LiftSteamIDBanPopupFeature(LiftBanPopupFeature):
-    flag = "admin.admin_kick_ban.ban_steamid"
-    popup_title = plugin_strings['popup_title lift_steamid']
-    banned_uniqueid_manager = banned_steamid_manager
-
-# The singleton object of the _LiftSteamIDBanPopupFeature class.
-lift_steamid_ban_popup_feature = _LiftSteamIDBanPopupFeature()
-
-
-class _LiftAnySteamIDBanPopupFeature(LiftAnyBanPopupFeature):
-    flag = "admin.admin_kick_ban.lift_reviewed_steamid"
-    popup_title = plugin_strings['popup_title lift_reviewed_steamid']
-    banned_uniqueid_manager = banned_steamid_manager
-
-# The singleton object of the _LiftAnySteamIDBanPopupFeature class.
-lift_any_steamid_ban_popup_feature = _LiftAnySteamIDBanPopupFeature()
-
-
-class _ReviewSteamIDBanMOTDFeature(ReviewBanMOTDFeature):
-    flag = "admin.admin_kick_ban.ban_steamid"
-    banned_uniqueid_manager = banned_steamid_manager
-    ws_review_ban_pages = _ws_review_steamid_ban_pages
-
-# The singleton object of the _ReviewSteamIDBanMOTDFeature class.
-review_steamid_ban_motd_feature = _ReviewSteamIDBanMOTDFeature()
-
-
-class _ReviewSteamIDBanPopupFeature(ReviewBanPopupFeature):
-    flag = "admin.admin_kick_ban.ban_steamid"
-    popup_title = plugin_strings['popup_title review_steamid']
-    banned_uniqueid_manager = banned_steamid_manager
-
-# The singleton object of the _ReviewSteamIDBanPopupFeature class.
-review_steamid_ban_popup_feature = _ReviewSteamIDBanPopupFeature()
-
-
-class _SearchBadSteamIDBansPopupFeature(SearchBadBansPopupFeature):
-    flag = "admin.admin_kick_ban.search_bad_steamid_bans"
-    popup_title = plugin_strings['popup_title search_bad_bans']
-    banned_uniqueid_manager = banned_steamid_manager
-
-# The singleton object of the _SearchBadSteamIDBansPopupFeature class.
-search_bad_steamid_bans_popup_feature = _SearchBadSteamIDBansPopupFeature()
-
-
 class BanSteamIDMenuCommand(LeftPlayerBasedMenuCommand):
     base_filter = 'human'
     allow_multiple_choices = False
@@ -189,6 +135,48 @@ class BanSteamIDMenuCommand(LeftPlayerBasedMenuCommand):
                 continue
 
             yield left_player
+
+
+class _LiftSteamIDBanFeature(LiftBanFeature):
+    flag = "admin.admin_kick_ban.ban_steamid"
+    banned_uniqueid_manager = banned_steamid_manager
+    ws_lift_ban_pages = _ws_lift_steamid_pages
+
+# The singleton object of the _LiftSteamIDBanFeature class.
+lift_steamid_ban_feature = _LiftSteamIDBanFeature()
+
+
+class LiftAnySteamIDBanMenuCommand(LiftAnyBanMenuCommand):
+    popup_title = plugin_strings['popup_title lift_reviewed_steamid']
+
+
+class LiftMySteamIDBanMenuCommand(LiftMyBanMenuCommand):
+    popup_title = plugin_strings['popup_title lift_steamid']
+
+
+class _ReviewSteamIDBanFeature(ReviewBanFeature):
+    flag = "admin.admin_kick_ban.ban_steamid"
+    banned_uniqueid_manager = banned_steamid_manager
+    ws_review_ban_pages = _ws_review_steamid_ban_pages
+
+# The singleton object of the _ReviewSteamIDBanFeature class.
+review_steamid_ban_feature = _ReviewSteamIDBanFeature()
+
+
+class ReviewSteamIDBanMenuCommand(ReviewBanMenuCommand):
+    popup_title = plugin_strings['popup_title review_steamid']
+
+
+class _RemoveBadSteamIDBanFeature(RemoveBadBanFeature):
+    flag = "admin.admin_kick_ban.search_bad_steamid_bans"
+    banned_uniqueid_manager = banned_steamid_manager
+
+# The singleton object of the _RemoveBadSteamIDBanFeature class.
+remove_bad_steamid_ban_feature = _RemoveBadSteamIDBanFeature()
+
+
+class RemoveBadSteamIDBanMenuCommand(RemoveBadBanMenuCommand):
+    popup_title = plugin_strings['popup_title search_bad_bans']
 
 
 class BanSteamIDPage(LeftPlayerBasedFeaturePage):
@@ -226,7 +214,7 @@ class LiftSteamIDBanPage(LiftBanPage):
     admin_plugin_id = "admin_kick_ban"
     admin_plugin_type = "included"
     page_id = "lift_steamid"
-    feature = lift_steamid_ban_motd_feature
+    feature = lift_steamid_ban_feature
 
     def __init__(self, index, page_request_type):
         super().__init__(index, page_request_type)
@@ -245,7 +233,7 @@ class ReviewSteamIDBanPage(ReviewBanPage):
     admin_plugin_id = "admin_kick_ban"
     admin_plugin_type = "included"
     page_id = "review_steamid"
-    feature = review_steamid_ban_motd_feature
+    feature = review_steamid_ban_feature
 
     def __init__(self, index, page_request_type):
         super().__init__(index, page_request_type)
