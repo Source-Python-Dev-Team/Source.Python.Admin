@@ -42,7 +42,7 @@ class Feature(BaseFeature):
         raise NotImplementedError
 
 
-class PlayerBasedFeature(BaseFeature):
+class BasePlayerBasedFeature(BaseFeature):
     feature_abstract = True
 
     # Allow clients to execute this feature on themselves?
@@ -51,14 +51,6 @@ class PlayerBasedFeature(BaseFeature):
     # Allow clients to execute this feature on those clients that have
     # permissions to execute this command, too?
     allow_execution_on_equal_priority = False
-
-    def execute(self, client, player):
-        """Execute the feature on the given player.
-
-        :param client: Client that performs the action.
-        :param player: Player to perform the action on.
-        """
-        raise NotImplementedError
 
     def filter(self, client, player):
         """Determine if a client is able to execute the feature on the given
@@ -77,3 +69,15 @@ class PlayerBasedFeature(BaseFeature):
 
         another_client = clients[player.index]
         return not another_client.has_permission(self.flag)
+
+
+class PlayerBasedFeature(BasePlayerBasedFeature):
+    feature_abstract = True
+
+    def execute(self, client, player):
+        """Execute the feature on the given player.
+
+        :param client: Client that performs the action.
+        :param player: Player to perform the action on.
+        """
+        raise NotImplementedError
