@@ -87,13 +87,4 @@ class Client(BaseClient):
     def steamid(self):
         return self.player.steamid
 
-
-class ClientDictionary(PlayerDictionary):
-    @staticmethod
-    def broadcast(message):
-        say_text2 = SayText2(strings_common['chat_base'].tokenized(
-            message=message))
-
-        say_text2.send(PlayerIter('human'))
-
-clients = ClientDictionary(Client)
+clients = PlayerDictionary(Client)

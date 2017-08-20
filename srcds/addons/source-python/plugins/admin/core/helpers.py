@@ -2,7 +2,7 @@
 # >> IMPORTS
 # =============================================================================
 # Source.Python
-from messages import SayText2
+from messages import HudDestination, SayText2, TextMsg
 from translations.manager import language_manager
 
 # Source.Python Admin
@@ -43,6 +43,16 @@ def format_player_name(player_name):
 
 
 def log_admin_action(message):
-    SayText2(strings_common['chat_base'].tokenized(message=message)).send()
+    chat_message(message)
     admin_performed_actions_logger.log_message(
         message.get_string(language_manager.default))
+
+
+def chat_message(message, targets=()):
+    SayText2(
+        strings_common['chat_base'].tokenized(message=message)
+    ).send(*targets)
+
+
+def console_message(message, targets=()):
+    TextMsg(message, HudDestination.CONSOLE).send(*targets)

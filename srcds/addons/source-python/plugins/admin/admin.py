@@ -10,6 +10,7 @@ from commands.typed import TypedClientCommand, TypedSayCommand
 from .core import models
 from .core.clients import clients
 from .core.events.storage import admin_resource_list
+from .core.helpers import chat_message
 from .core.listeners import (on_spa_loaded_listener_manager,
                              on_spa_unloaded_listener_manager)
 from .core.frontends.menus import main_menu
@@ -32,13 +33,13 @@ Base.metadata.create_all(engine)
 def load():
     admin_resource_list.load_all_events()
     on_spa_loaded_listener_manager.notify()
-    clients.broadcast(strings_common['load'])
+    chat_message(strings_common['load'])
 
 
 def unload():
     admin_command_manager.unload_all_plugins()
     on_spa_unloaded_listener_manager.notify()
-    clients.broadcast(strings_common['unload'])
+    chat_message(strings_common['unload'])
 
 
 # =============================================================================
