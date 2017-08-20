@@ -3,14 +3,12 @@
 # =============================================================================
 # Source.Python
 from auth.manager import auth_manager
-from filters.players import PlayerIter
 from listeners.tick import Delay
-from messages import SayText2
 from players.dictionary import PlayerDictionary
 from players.entity import Player
 
 # Source.Python Admin
-from .strings import strings_common
+from .helpers import chat_message
 
 
 # =============================================================================
@@ -73,8 +71,7 @@ class Client(BaseClient):
         popup.send(self.player.index)
 
     def tell(self, message):
-        SayText2(strings_common['chat_base'].tokenized(message=message)).send(
-            self.player.index)
+        chat_message(message, (self.player.index,))
 
     def sync_execution(self, callback, args=(), kwargs=None):
         self.player.delay(0, callback, args, kwargs)
