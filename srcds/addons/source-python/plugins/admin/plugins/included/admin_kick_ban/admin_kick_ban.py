@@ -78,21 +78,6 @@ menu_section_steamid = menu_section.add_entry(MenuSection(
 menu_section_ip_address = menu_section.add_entry(MenuSection(
     menu_section, plugin_strings['section_title ip_address_bans']))
 
-"""
-lift_steamid_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_steamid.popup)
-lift_ip_address_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_ip_address.popup)
-lift_any_steamid_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_steamid.popup)
-lift_any_ip_address_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_ip_address.popup)
-review_steamid_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_steamid.popup)
-review_ip_address_ban_popup_feature.ban_popup.parent_menu = (
-    menu_section_ip_address.popup)
-"""
-
 menu_section.add_entry(_KickMenuCommand(
     kick_feature,
     menu_section,
