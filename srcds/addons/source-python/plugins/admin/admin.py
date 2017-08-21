@@ -45,15 +45,15 @@ def unload():
 # =============================================================================
 # >> MAIN COMMANDS
 # =============================================================================
-@TypedClientCommand(['amenu'], 'admin.base')
-@TypedSayCommand(['!amenu'], 'admin.base')
-@TypedSayCommand(['/amenu'], 'admin.base')
+@TypedClientCommand(['spa', 'menu'], 'admin.base')
+@TypedSayCommand(['!spa', 'menu'], 'admin.base')
+@TypedSayCommand(['/spa', 'menu'], 'admin.base')  # TODO: Suppress the message
 def _admin_command(command_info):
     main_menu.popup.send(command_info.index)
 
 
-@TypedClientCommand(['ascreen'], 'admin.motd')
-@TypedSayCommand(['!ascreen'], 'admin.motd')
-@TypedSayCommand(['/ascreen'], 'admin.motd')
+@TypedClientCommand(['spa', 'motd'], 'admin.base')
+@TypedSayCommand(['!spa', 'motd'], 'admin.base')
+@TypedSayCommand(['/spa', 'motd'], 'admin.base')  # TODO: Suppress the message
 def _admin_command(command_info):
     MainPage.send(command_info.index)
