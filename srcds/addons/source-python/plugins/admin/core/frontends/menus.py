@@ -100,7 +100,7 @@ class MenuSection(MenuEntry, list):
         """
         self.append(entry)
         self.sort(key=lambda entry_: (self.order.index(entry_.id)
-                                      if entry_.id in self.order else -1))
+                                      if entry_.id in self.order else 999))
 
         return entry
 
@@ -148,7 +148,7 @@ class MenuSection(MenuEntry, list):
     def load_order(self, order):
         self.order = order[:]
         self.sort(key=lambda entry_: (self.order.index(entry_.id)
-                                      if entry_.id in self.order else -1))
+                                      if entry_.id in self.order else 999))
 
 
 class MenuCommand(MenuEntry):
