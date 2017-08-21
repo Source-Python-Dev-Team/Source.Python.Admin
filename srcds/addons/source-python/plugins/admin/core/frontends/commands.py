@@ -4,6 +4,7 @@
 # Source.Python
 from commands import CommandReturn
 from commands.typed import TypedClientCommand, TypedSayCommand
+from core import AutoUnload
 from filters.players import PlayerIter
 
 # Source.Python Admin
@@ -61,7 +62,7 @@ def iter_filter_targets(filter_str, filter_args, issuer):
 # =============================================================================
 # >> CLASSES
 # =============================================================================
-class BaseFeatureCommand:
+class BaseFeatureCommand(AutoUnload):
     def __init__(self, commands, feature):
         if isinstance(commands, str):
             commands = [commands, ]
@@ -70,17 +71,21 @@ class BaseFeatureCommand:
 
         self.feature = feature
 
-        TypedSayCommand(
+        self._public_chat_command = TypedSayCommand(
             ['!spa', ] + commands, feature.flag
-        )(self._get_public_chat_callback())
+        )
 
-        TypedSayCommand(
+        self._private_chat_command = TypedSayCommand(
             ['/spa', ] + commands, feature.flag
-        )(self._get_private_chat_callback())
+        )
 
-        TypedClientCommand(
+        self._client_command = TypedClientCommand(
             ['spa', ] + commands, feature.flag
-        )(self._get_client_callback())
+        )
+
+        self._public_chat_command(self._get_public_chat_callback())
+        self._private_chat_command(self._get_private_chat_callback())
+        self._client_command(self._get_client_callback())
 
     def _get_public_chat_callback(self):
         raise NotImplementedError
@@ -90,6 +95,11 @@ class BaseFeatureCommand:
 
     def _get_client_callback(self):
         raise NotImplementedError
+
+    def _unload_instance(self):
+        self._public_chat_command._unload_instance()
+        self._private_chat_command._unload_instance()
+        self._client_command._unload_instance()
 
 
 class FeatureCommand(BaseFeatureCommand):
