@@ -8,6 +8,7 @@ from translations.strings import LangStrings
 
 # Source.Python Admin
 from ..clients import clients
+from ..config import config
 from ..helpers import format_player_name
 from ..strings import strings_common
 
@@ -144,8 +145,10 @@ class MenuSection(MenuEntry, list):
 
         client.send_popup(self.popup)
 
-# Main section
-main_menu = MenuSection(None, strings_common['title main'], 'admin')
+    def load_order(self, order):
+        self.order = order[:]
+        self.sort(key=lambda entry_: (self.order.index(entry_.id)
+                                      if entry_.id in self.order else -1))
 
 
 class MenuCommand(MenuEntry):
@@ -542,3 +545,12 @@ class PlayerBasedMenuCommand(BasePlayerBasedMenuCommand):
 
     def _iter(self):
         yield from PlayerIter(self.base_filter)
+
+
+# =============================================================================
+# >> MAIN MENU
+# =============================================================================
+main_menu = MenuSection(None, strings_common['title main'], 'admin')
+main_menu.load_order(list(map(
+    lambda x: x.strip(), config['menus']['order'].split(',')
+)))

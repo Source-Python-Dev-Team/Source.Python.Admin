@@ -112,7 +112,7 @@ PlayerBasedFeatureCommand("resurrect", resurrect_feature)
 # >> MENU ENTRIES
 # =============================================================================
 menu_section = main_menu.add_entry(MenuSection(
-    main_menu, plugin_strings['section_title']))
+    main_menu, plugin_strings['section_title'], 'life_management'))
 
 slay_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     slay_feature,

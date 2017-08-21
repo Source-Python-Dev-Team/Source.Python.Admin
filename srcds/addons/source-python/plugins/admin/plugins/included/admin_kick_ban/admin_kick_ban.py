@@ -70,7 +70,7 @@ class _KickPage(PlayerBasedFeaturePage):
 # >> MENU ENTRIES
 # =============================================================================
 menu_section = main_menu.add_entry(MenuSection(
-    main_menu, plugin_strings['section_title main']))
+    main_menu, plugin_strings['section_title main'], 'kick_ban'))
 
 menu_section_steamid = menu_section.add_entry(MenuSection(
     menu_section, plugin_strings['section_title steamid_bans']))

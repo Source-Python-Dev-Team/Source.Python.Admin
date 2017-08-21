@@ -100,7 +100,7 @@ delayed_move_to_ct_feature = _DelayedMoveToCTFeature()
 # >> MENU ENTRIES
 # =============================================================================
 menu_section = main_menu.add_entry(MenuSection(
-    main_menu, plugin_strings['section_title']))
+    main_menu, plugin_strings['section_title'], 'team_management'))
 
 move_to_spec_menu_command = menu_section.add_entry(PlayerBasedMenuCommand(
     move_to_spec_feature,

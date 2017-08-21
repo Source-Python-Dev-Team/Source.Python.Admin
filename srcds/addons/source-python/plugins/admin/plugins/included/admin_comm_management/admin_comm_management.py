@@ -21,7 +21,7 @@ from .strings import plugin_strings
 # >> MENU ENTRIES
 # =============================================================================
 menu_section = main_menu.add_entry(MenuSection(
-    main_menu, plugin_strings['section_title main']))
+    main_menu, plugin_strings['section_title main'], 'comm_management'))
 
 menu_section_chat = menu_section.add_entry(MenuSection(
     menu_section, plugin_strings['section_title chat']))
@@ -58,6 +58,7 @@ menu_section_voice.add_entry(UnblockMyVoiceMenuCommand(
     unblock_my_voice_feature,
     menu_section_voice,
     plugin_strings['popup_title unblock_voice']))
+
 
 # =============================================================================
 # >> SYNCHRONOUS DATABASE OPERATIONS
